@@ -250,69 +250,21 @@ function seedData(){
 }
 
 /* ------------------------------------------------------------------ */
-/*  Storage helpers                                                    */
+/*  No persistence — everything lives in memory for this session only  */
 /* ------------------------------------------------------------------ */
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-// Keeps the shared blob from growing without bound as more people use the
-// demo — this is a likely cause of intermittent "internal server error"
-// writes, since everyone shares the same "gamelink-data" key.
-function pruneData(data){
-  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  const parties = data.parties
-    .filter(p => {
-      if(p.status !== "completed") return true;
-      return now - new Date(p.datetime).getTime() < THIRTY_DAYS;
-    })
-    .slice(0, 150); // hard cap so payload never runs away
-  return { ...data, parties };
-}
-
-async function retryingStorageSet(key, value, shared, attempts){
-  attempts = attempts || 3;
-  let lastErr = null;
-  for(let i = 0; i < attempts; i++){
-    try{
-      const res = await window.storage.set(key, value, shared);
-      if(res) return true;
-      lastErr = new Error("Storage set returned no result");
-    }catch(e){
-      lastErr = e;
-    }
-    if(i < attempts - 1) await sleep(400 * (i + 1)); // small backoff
-  }
-  console.error("Storage save failed after retries:", lastErr);
-  return false;
-}
-
 async function loadShared(){
-  try{ const res = await window.storage.get("gamelink-data", true); return res ? JSON.parse(res.value) : emptyData(); }
-  catch{ return emptyData(); }
+  return { ok: true, data: emptyData() };
 }
-async function saveShared(data){
-  const pruned = pruneData(data);
-  const ok = await retryingStorageSet("gamelink-data", JSON.stringify(pruned), true);
-  if(!ok) flashSaveWarning();
-  return ok;
+async function saveShared(_data){
+  // no-op: storage removed, state is kept in memory only
+  return true;
 }
 async function loadProfile(){
-  try{ const res = await window.storage.get("my-profile", false); return res ? JSON.parse(res.value) : null; }
-  catch{ return null; }
+  return null;
 }
-async function saveProfile(p){
-  const ok = await retryingStorageSet("my-profile", JSON.stringify(p), false);
-  if(!ok) flashSaveWarning();
-  return ok;
-}
-
-// Throttled so a run of failures doesn't spam toasts on top of each other.
-let lastSaveWarningAt = 0;
-function flashSaveWarning(){
-  const now = Date.now();
-  if(now - lastSaveWarningAt < 8000) return;
-  lastSaveWarningAt = now;
-  flash("⚠️ Couldn't sync to the server — your changes are still here, but may not survive a refresh. Retrying…");
+async function saveProfile(_p){
+  // no-op: storage removed, state is kept in memory only
+  return true;
 }
 
 /* ------------------------------------------------------------------ */
@@ -349,14 +301,8 @@ async function persistData(next){
 }
 
 async function init(){
-  const p = await loadProfile();
-  let shared = await loadShared();
-  if(shared.parties.length === 0 && !p){
-    shared = seedData();
-    await saveShared(shared);
-  }
-  state.profile = p;
-  state.data = shared;
+  state.profile = null;
+  state.data = seedData();
   state.loading = false;
   render();
 }
@@ -458,7 +404,8 @@ function renderOnboarding(){
     body = `
       <div class="gl-display" style="font-size:20px;margin-bottom:8px;">What's your name?</div>
       <p style="color:var(--muted);font-size:13px;margin-bottom:18px;">This is how other players will see you in the lobby.</p>
-      <input class="gl-input" id="onboardName" placeholder="e.g. Sofia Martins" value="${f.name.replace(/"/g,'&quot;')}" autofocus />
+      <input class="gl-input" id="onboardName" placeholder="e.g. Sofia Martins" value="${f.name.replace(/"/g,'&quot;')}" autofocus
+        oninput="state.onboardForm.name = this.value; document.getElementById('onboardNextBtn').toggleAttribute('disabled', !this.value.trim());" />
     `;
   } else if(step === "sports"){
     body = `
@@ -507,7 +454,7 @@ function renderOnboarding(){
       <div style="flex:1;">${body}</div>
       <div style="display:flex;gap:10px;margin-top:24px;">
         ${state.onboardStep > 0 ? `<button data-action="onboard-back" class="gl-btn gl-btn-outline" style="flex:0 0 auto;padding:13px 16px;">${icon("chevronLeft",16)}</button>` : ""}
-        <button data-action="onboard-next" class="gl-btn" style="flex:1;" ${canNext ? "" : "disabled"}>
+        <button data-action="onboard-next" id="onboardNextBtn" class="gl-btn" style="flex:1;" ${canNext ? "" : "disabled"}>
           ${state.onboardStep === steps.length - 1 ? "Enter GameLink" : "Continue"}
         </button>
       </div>
