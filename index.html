@@ -113,6 +113,7 @@
     border-top:1px solid var(--line);
     display:flex; justify-content:space-around;
     padding:10px 6px 12px 6px;
+    z-index: 30;
   }
   .gl-navitem{
     display:flex; flex-direction:column; align-items:center; gap:3px;
@@ -128,11 +129,11 @@
     border:1.5px dashed var(--line);
     color:var(--muted);
     flex-shrink:0;
+    cursor: pointer;
   }
   .gl-slot.filled{ border-style:solid; border-color:var(--grass); background:rgba(76,154,90,0.18); color:var(--chalk); }
   .gl-slot.gk{ border-radius:50%; border-color:var(--amber); }
   .gl-slot.gk.filled{ background:rgba(232,162,61,0.2); border-color:var(--amber); }
-  .gl-slot.joinable{ cursor:pointer; }
   .gl-tag{
     font-size:11px; font-weight:700; padding:4px 9px; border-radius:100px;
     display:inline-flex; align-items:center; gap:4px;
@@ -141,17 +142,18 @@
   .gl-tag.competitive{ background:rgba(192,86,74,0.2); color:#E08A7D; }
   .gl-tag.drills{ background:rgba(232,162,61,0.18); color:var(--amber); }
   .gl-tag.gk-tag{ background:rgba(232,162,61,0.18); color:var(--amber); }
+  .gl-tag.private-tag{ background:rgba(192,86,74,0.2); color:var(--danger); }
   .gl-toast{
     position:absolute; bottom:88px; left:16px; right:16px;
     background:var(--surface-2); border:1px solid var(--grass);
     padding:12px 14px; border-radius:12px; font-size:13px;
     display:flex; align-items:center; gap:8px;
     animation: gl-rise .25s ease;
-    z-index:50;
+    z-index:100;
   }
   @keyframes gl-rise{ from{ opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
   .gl-modal-backdrop{
-    position:absolute; inset:0; background:rgba(0,0,0,0.55);
+    position:absolute; inset:0; background:rgba(0,0,0,0.65);
     display:flex; align-items:flex-end; z-index:40;
   }
   .gl-modal{
@@ -165,6 +167,19 @@
   .gl-progressfill{ height:100%; background:var(--grass); transition:width .3s ease; }
   .gl-row{ display:flex; gap:10px; }
   .gl-col{ flex:1; }
+  
+  /* Tabs styles for chat & details */
+  .gl-tabs-header{ display: flex; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+  .gl-tab-btn{ flex: 1; text-align: center; background: none; border: none; color: var(--muted); padding: 10px; font-weight: 700; font-size: 13px; cursor: pointer; text-transform: uppercase; }
+  .gl-tab-btn.active{ color: var(--grass-bright); border-bottom: 2px solid var(--grass-bright); }
+  
+  /* Chat styles */
+  .gl-chat-box{ display: flex; flex-direction: column; height: 240px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .gl-chat-messages{ flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .gl-chat-msg{ font-size: 13px; padding: 8px 12px; border-radius: 10px; max-width: 80%; }
+  .gl-chat-msg.me{ background: var(--grass); color: var(--ink); align-self: flex-end; }
+  .gl-chat-msg.other{ background: var(--surface-2); color: var(--chalk); align-self: flex-start; }
+  .gl-chat-input-row{ display: flex; border-top: 1px solid var(--line); background: var(--ink); }
 </style>
 </head>
 <body>
@@ -172,7 +187,7 @@
 
 <script>
 /* ------------------------------------------------------------------ */
-/*  Icons (inline SVG, no external deps)                               */
+/* Icons                                                             */
 /* ------------------------------------------------------------------ */
 const ICON_PATHS = {
   home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/>',
@@ -186,11 +201,10 @@ const ICON_PATHS = {
   x: '<line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/>',
   chevronLeft: '<polyline points="15,5 8,12 15,19"/>',
   megaphone: '<path d="M3 10v4h3l7 4V6l-7 4H3z"/><path d="M17 8.5a3.5 3.5 0 0 1 0 7"/>',
-  shield: '<path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/>',
-  alertCircle: '<circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16.3" r="0.6" fill="currentColor" stroke="none"/>',
-  coffee: '<path d="M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8z"/><path d="M17 9.5h1.2a2.3 2.3 0 0 1 0 4.6H17"/>',
-  flame: '<path d="M12 2c1 4-4 5-4 9a4 4 0 0 0 8 0c0-1.5-1-2.5-1-4 2 1 3 3 3 5a6 6 0 0 1-12 0c0-5 4-6 6-10z"/>',
-  target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.7" fill="currentColor" stroke="none"/>',
+  lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  messageSquare: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'
 };
 function icon(name, size, color){
   size = size || 16;
@@ -199,7 +213,7 @@ function icon(name, size, color){
 }
 
 /* ------------------------------------------------------------------ */
-/*  Constants                                                          */
+/* Constants & Seeding                                               */
 /* ------------------------------------------------------------------ */
 const HUBS = ["Lisboa", "Cascais", "Estoril", "Carcavelos", "Oeiras", "Sintra", "Colares"];
 const LEVELS = ["Beginner", "Intermediate", "Advanced"];
@@ -209,7 +223,10 @@ const FORMATS = {
     { label: "7-a-side", total: 14 },
     { label: "11-a-side", total: 22 },
   ],
-  Padel: [{ label: "4 players", total: 4 }],
+  Volleyball: [
+    { label: "2v2 Beach Volleyball", total: 4 },
+    { label: "6v6 Indoor Volleyball", total: 12 }
+  ],
 };
 const STYLES = [
   { id: "chill", label: "Chill / Friendly", icon: "coffee" },
@@ -218,7 +235,7 @@ const STYLES = [
 ];
 
 const uid = () => Math.random().toString(36).slice(2, 10);
-const emptyData = () => ({ players: {}, parties: [] });
+const emptyData = () => ({ players: {}, parties: {}, friends: [] });
 
 function fmtDate(iso){
   const d = new Date(iso);
@@ -231,60 +248,42 @@ function nextDate(daysFromNow, hour){
   d.setHours(hour,0,0,0);
   return d.toISOString();
 }
+
 function seedData(){
   const players = {
-    p_joao: { id:"p_joao", name:"João", matches:14, reliability:96 },
-    p_rita: { id:"p_rita", name:"Rita", matches:9, reliability:100 },
-    p_miguel: { id:"p_miguel", name:"Miguel", matches:21, reliability:88 },
-    p_ines: { id:"p_ines", name:"Inês", matches:5, reliability:100 },
+    p_joao: { id:"p_joao", name:"João Silva", matches:14, reliability:96, sports:["Football"], level:"Intermediate", frequency:"3-4 times a week", homeRegion:"Lisboa", preferredRegion:"Lisboa" },
+    p_rita: { id:"p_rita", name:"Rita Costa", matches:9, reliability:100, sports:["Volleyball"], level:"Advanced", frequency:"1-2 times a week", homeRegion:"Cascais", preferredRegion:"Cascais" },
+    p_miguel: { id:"p_miguel", name:"Miguel Santos", matches:21, reliability:88, sports:["Football", "Volleyball"], level:"Advanced", frequency:"5+ times a week", homeRegion:"Estoril", preferredRegion:"Oeiras" },
+    p_ines: { id:"p_ines", name:"Inês Rocha", matches:5, reliability:100, sports:["Volleyball"], level:"Beginner", frequency:"1-2 times a week", homeRegion:"Sintra", preferredRegion:"Carcavelos" },
   };
   const parties = [
-    { id:uid(), sport:"Padel", format:"4 players", slotsTotal:4, hub:"Cascais", datetime:nextDate(1,18), style:"chill", hostId:"p_rita", status:"open", needsGK:false,
-      slots:[ {playerId:"p_rita",name:"Rita",position:null}, {playerId:"p_joao",name:"João",position:null}, null, null ] },
-    { id:uid(), sport:"Football", format:"5-a-side", slotsTotal:10, hub:"Estoril", datetime:nextDate(2,20), style:"competitive", hostId:"p_miguel", status:"open", needsGK:true,
-      slots:[ {playerId:"p_miguel",name:"Miguel",position:"Outfield"}, {playerId:"p_ines",name:"Inês",position:"Outfield"}, ...Array(8).fill(null) ] },
-    { id:uid(), sport:"Football", format:"7-a-side", slotsTotal:14, hub:"Oeiras", datetime:nextDate(0,19), style:"drills", hostId:"p_joao", status:"open", needsGK:false,
-      slots:[ {playerId:"p_joao",name:"João",position:"Outfield"}, ...Array(13).fill(null) ] },
+    { id:"party_1", sport:"Volleyball", format:"2v2 Beach Volleyball", slotsTotal:4, hub:"Cascais", datetime:nextDate(1,18), style:"chill", hostId:"p_rita", status:"open", privacy:"public", needsGK:false,
+      slots:[ {playerId:"p_rita",name:"Rita",position:null}, {playerId:"p_joao",name:"João",position:null}, null, null ], chats: [{senderName:"Rita", text:"Hey everyone! Bring sunscreen!"}] },
+    { id:"party_2", sport:"Football", format:"5-a-side", slotsTotal:10, hub:"Estoril", datetime:nextDate(2,20), style:"competitive", hostId:"p_miguel", status:"open", privacy:"public", needsGK:true,
+      slots:[ {playerId:"p_miguel",name:"Miguel",position:"Outfield"}, {playerId:"p_ines",name:"Inês",position:"Outfield"}, ...Array(8).fill(null) ], chats: [] },
   ];
-  return { players, parties };
+  return { players, parties, friends: ["p_joao", "p_rita"] };
 }
 
 /* ------------------------------------------------------------------ */
-/*  No persistence — everything lives in memory for this session only  */
-/* ------------------------------------------------------------------ */
-async function loadShared(){
-  return { ok: true, data: emptyData() };
-}
-async function saveShared(_data){
-  // no-op: storage removed, state is kept in memory only
-  return true;
-}
-async function loadProfile(){
-  return null;
-}
-async function saveProfile(_p){
-  // no-op: storage removed, state is kept in memory only
-  return true;
-}
-
-/* ------------------------------------------------------------------ */
-/*  App State                                                           */
+/* App State                                                         */
 /* ------------------------------------------------------------------ */
 let state = {
-  loading: true,
   profile: null,
-  data: emptyData(),
-  screen: "home",
+  data: seedData(),
+  screen: "onboard", // Starts at survey/onboarding
   activePartyId: null,
+  activeProfileId: null, // For profile exploration popup
+  partyTab: "squad", // squad or chat
   showCreate: false,
   hubFilter: "All",
   sportFilter: "All",
+  leaderboardSport: "Football",
   toast: null,
   toastTimer: null,
   onboardStep: 0,
-  onboardForm: { name: "", sports: [], level: "", hub: "" },
-  createForm: { sport: "Football", format: FORMATS.Football[0].label, needsGK: false, style: "chill" },
-  showRating: false,
+  onboardForm: { name: "", sports: [], frequency: "1-2 times a week", level: "Beginner", homeRegion: "Lisboa", preferredRegion: "Lisboa" },
+  createForm: { sport: "Football", format: FORMATS.Football[0].label, needsGK: false, style: "chill", privacy: "public", privateShareType: "friends" },
   noShows: [],
 };
 
@@ -295,551 +294,263 @@ function flash(msg){
   state.toastTimer = setTimeout(() => { state.toast = null; render(); }, 2600);
 }
 
-async function persistData(next){
-  state.data = next;
-  await saveShared(next);
-}
-
-async function init(){
-  state.profile = null;
-  state.data = seedData();
-  state.loading = false;
-  render();
-}
-
 /* ------------------------------------------------------------------ */
-/*  Actions                                                             */
+/* Actions                                                           */
 /* ------------------------------------------------------------------ */
-async function completeOnboarding(){
+function completeOnboarding(){
   const f = state.onboardForm;
-  const withId = { ...f, id: "me_" + uid(), matches: 0, reliability: 100 };
-  state.profile = withId;
-  await saveProfile(withId);
-  const next = { ...state.data, players: { ...state.data.players, [withId.id]: { id: withId.id, name: withId.name, matches: 0, reliability: 100 } } };
-  await persistData(next);
-  flash(`Welcome to GameLink, ${withId.name} 👋`);
+  const myId = "me_user";
+  state.profile = { id: myId, name: f.name, matches: 0, reliability: 100, ...f };
+  state.data.players[myId] = state.profile;
+  state.screen = "home";
+  flash(`Profile built! Welcome, ${f.name} 👋`);
   render();
 }
 
 function joinSlot(party, slotIndex, position){
-  const profile = state.profile;
-  const already = party.slots.some(s => s && s.playerId === profile.id);
-  if(already){ flash("You're already in this party."); return; }
+  if(!state.profile) return;
+  const already = party.slots.some(s => s && s.playerId === state.profile.id);
+  if(already){ flash("You are already in this match."); return; }
+  
   const newSlots = [...party.slots];
-  newSlots[slotIndex] = { playerId: profile.id, name: profile.name, position: position || null };
-  const isFull = newSlots.every(s => s !== null);
-  const updatedParty = { ...party, slots: newSlots, status: isFull ? "full" : "open" };
-  const nextParties = state.data.parties.map(p => p.id === party.id ? updatedParty : p);
-  persistData({ ...state.data, parties: nextParties });
-  flash(isFull ? "You're in — squad is full! ⚽" : "You joined the party.");
+  newSlots[slotIndex] = { playerId: state.profile.id, name: state.profile.name.split(" ")[0], position: position || null };
+  party.slots = newSlots;
+  if(newSlots.every(s => s !== null)) party.status = "full";
+  
+  flash("Successfully booked into the roster.");
   render();
 }
 
 function createParty(){
-  const sport = state.createForm.sport;
-  const format = state.createForm.format;
+  const f = state.createForm;
   const hub = document.getElementById("createHub").value;
   const date = document.getElementById("createDate").value;
   const time = document.getElementById("createTime").value;
-  const needsGK = document.getElementById("createGK") ? document.getElementById("createGK").checked : false;
-  if(!date){ flash("Pick a date first."); return; }
-  const fmt = FORMATS[sport].find(f => f.label === format);
+  if(!date){ flash("Please pick a valid date."); return; }
+  
+  const fmt = FORMATS[f.sport].find(fmtOpt => fmtOpt.label === f.format);
   const slots = Array(fmt.total).fill(null);
-  slots[0] = { playerId: state.profile.id, name: state.profile.name, position: sport === "Football" ? "Outfield" : null };
-  const datetime = new Date(`${date}T${time || "19:00"}:00`).toISOString();
-  const party = {
-    id: uid(), sport, format, slotsTotal: fmt.total, hub, datetime,
-    style: state.createForm.style, needsGK: sport === "Football" ? needsGK : false,
-    hostId: state.profile.id, status: "open", slots,
+  slots[0] = { playerId: state.profile.id, name: state.profile.name.split(" ")[0], position: f.sport === "Football" ? "Outfield" : null };
+  
+  const newParty = {
+    id: uid(), sport: f.sport, format: f.format, slotsTotal: fmt.total, hub,
+    datetime: new Date(`${date}T${time}:00`).toISOString(), style: f.style,
+    needsGK: f.sport === "Football" ? f.needsGK : false, hostId: state.profile.id,
+    status: "open", privacy: f.privacy, privateShareType: f.privateShareType, slots, chats: []
   };
-  persistData({ ...state.data, parties: [party, ...state.data.parties] });
+  
+  state.data.parties.unshift(newParty);
   state.showCreate = false;
-  state.activePartyId = party.id;
+  state.activePartyId = newParty.id;
   state.screen = "party";
-  flash("Party created — waiting for players.");
+  
+  if(f.privacy === 'private' && f.privateShareType === 'link') {
+    flash("Private match generated! Copy link to invite friends.");
+  } else {
+    flash("Match successfully hosted!");
+  }
   render();
 }
 
-function markPlayed(party){
-  const nextPlayers = { ...state.data.players };
-  party.slots.filter(Boolean).forEach(s => {
-    const existing = nextPlayers[s.playerId] || { id: s.playerId, name: s.name, matches: 0, reliability: 100 };
-    const didShow = !state.noShows.includes(s.playerId);
-    nextPlayers[s.playerId] = {
-      ...existing,
-      matches: existing.matches + (didShow ? 1 : 0),
-      reliability: Math.max(0, Math.min(100, existing.reliability + (didShow ? 1 : -12))),
-    };
+function sendChatMessage(partyId){
+  const input = document.getElementById("chatInput");
+  if(!input || !input.value.trim()) return;
+  const party = state.data.parties.find(p => p.id === partyId);
+  if(!party) return;
+  
+  party.chats.push({
+    senderName: state.profile.name.split(" ")[0],
+    text: input.value.trim()
   });
-  const nextParties = state.data.parties.map(p => p.id === party.id ? { ...p, status: "completed" } : p);
-  persistData({ ...state.data, players: nextPlayers, parties: nextParties });
-  if(state.profile && nextPlayers[state.profile.id]){
-    state.profile = { ...state.profile, matches: nextPlayers[state.profile.id].matches, reliability: nextPlayers[state.profile.id].reliability };
-    saveProfile(state.profile);
+  input.value = "";
+  render();
+}
+
+function toggleFriend(playerId){
+  const index = state.data.friends.indexOf(playerId);
+  if(index > -1){
+    state.data.friends.splice(index, 1);
+    flash("Removed from friends list.");
+  } else {
+    state.data.friends.push(playerId);
+    flash("Friend added successfully!");
   }
-  state.screen = "home";
-  state.activePartyId = null;
-  state.showRating = false;
-  state.noShows = [];
-  flash("Match logged. Reliability updated.");
   render();
 }
 
 /* ------------------------------------------------------------------ */
-/*  Render: screens                                                     */
+/* UI Handlers & Dispatcher                                          */
 /* ------------------------------------------------------------------ */
-function renderLoading(){
-  return `<div class="gl-root" style="align-items:center;justify-content:center;">
-    <div class="gl-display" style="color:var(--muted);font-size:14px;">Loading GameLink…</div>
-  </div>`;
-}
+window.addEventListener("click", e => {
+  const btn = e.target.closest("[data-action]");
+  if(!btn) return;
+  const act = btn.getAttribute("data-action");
+  
+  if(act === "onboard-next"){
+    if(state.onboardStep < 5) { state.onboardStep++; render(); }
+    else { completeOnboarding(); }
+  }
+  else if(act === "onboard-back"){ state.onboardStep--; render(); }
+  else if(act === "onboard-sport"){
+    const sp = btn.getAttribute("data-value");
+    const idx = state.onboardForm.sports.indexOf(sp);
+    if(idx > -1) state.onboardForm.sports.splice(idx,1);
+    else state.onboardForm.sports.push(sp);
+    render();
+  }
+  else if(act === "onboard-freq"){ state.onboardForm.frequency = btn.getAttribute("data-value"); render(); }
+  else if(act === "onboard-level"){ state.onboardForm.level = btn.getAttribute("data-value"); render(); }
+  else if(act === "onboard-home"){ state.onboardForm.homeRegion = btn.getAttribute("data-value"); render(); }
+  else if(act === "onboard-pref"){ state.onboardForm.preferredRegion = btn.getAttribute("data-value"); render(); }
+  
+  // Navigation
+  else if(act === "nav-home"){ state.screen = "home"; render(); }
+  else if(act === "nav-calendar"){ state.screen = "calendar"; render(); }
+  else if(act === "nav-leaderboard"){ state.screen = "leaderboard"; render(); }
+  else if(act === "nav-profile"){ state.screen = "profile"; render(); }
+  
+  // Filters & Profile Popups
+  else if(act === "filter-sport"){ state.sportFilter = btn.getAttribute("data-value"); render(); }
+  else if(act === "filter-hub"){ state.hubFilter = btn.getAttribute("data-value"); render(); }
+  else if(act === "leaderboard-tab"){ state.leaderboardSport = btn.getAttribute("data-value"); render(); }
+  else if(act === "view-profile"){ state.activeProfileId = btn.getAttribute("data-id"); render(); }
+  else if(act === "close-profile"){ state.activeProfileId = null; render(); }
+  else if(act === "toggle-friend"){ toggleFriend(btn.getAttribute("data-id")); }
+  
+  // Create Party Workflows
+  else if(act === "open-create"){ state.showCreate = true; render(); }
+  else if(act === "close-create"){ state.showCreate = false; render(); }
+  else if(act === "create-sport"){
+    state.createForm.sport = btn.getAttribute("data-value");
+    state.createForm.format = FORMATS[state.createForm.sport][0].label;
+    render();
+  }
+  else if(act === "create-format"){ state.createForm.format = btn.getAttribute("data-value"); render(); }
+  else if(act === "create-privacy"){ state.createForm.privacy = btn.getAttribute("data-value"); render(); }
+  else if(act === "create-share"){ state.createForm.privateShareType = btn.getAttribute("data-value"); render(); }
+  else if(act === "create-style"){ state.createForm.style = btn.getAttribute("data-value"); render(); }
+  else if(act === "create-submit"){ createParty(); }
+  
+  // Party Details
+  else if(act === "open-party"){ state.screen = "party"; state.activePartyId = btn.getAttribute("data-id"); state.partyTab = "squad"; render(); }
+  else if(act === "back-home"){ state.screen = "home"; render(); }
+  else if(act === "party-tab"){ state.partyTab = btn.getAttribute("data-value"); render(); }
+  else if(act === "join-slot"){
+    const party = state.data.parties.find(p => p.id === state.activePartyId);
+    joinSlot(party, parseInt(btn.getAttribute("data-index")), btn.getAttribute("data-pos"));
+  }
+  else if(act === "send-chat"){ sendChatMessage(state.activePartyId); }
+});
 
+/* ------------------------------------------------------------------ */
+/* Templates & Rendering                                             */
+/* ------------------------------------------------------------------ */
 function renderOnboarding(){
-  const steps = ["name","sports","level","hub"];
-  const step = steps[state.onboardStep];
+  const step = state.onboardStep;
   const f = state.onboardForm;
-  let body = "";
-
-  if(step === "name"){
-    body = `
-      <div class="gl-display" style="font-size:20px;margin-bottom:8px;">What's your name?</div>
-      <p style="color:var(--muted);font-size:13px;margin-bottom:18px;">This is how other players will see you in the lobby.</p>
-      <input class="gl-input" id="onboardName" placeholder="e.g. Sofia Martins" value="${f.name.replace(/"/g,'&quot;')}" autofocus
-        oninput="state.onboardForm.name = this.value; document.getElementById('onboardNextBtn').toggleAttribute('disabled', !this.value.trim());" />
+  let viewHtml = "";
+  
+  if(step === 0){
+    viewHtml = `
+      <div class="gl-display" style="font-size:18px;margin-bottom:8px;">What is your full name?</div>
+      <input class="gl-input" id="ob-name" value="${f.name}" placeholder="e.g. Sofia Martins" oninput="state.onboardForm.name=this.value;" />
     `;
-  } else if(step === "sports"){
-    body = `
-      <div class="gl-display" style="font-size:20px;margin-bottom:8px;">Which sports do you play?</div>
-      <p style="color:var(--muted);font-size:13px;margin-bottom:18px;">We're starting with these two in Lisbon.</p>
-      <div style="display:flex;gap:10px;">
-        ${["Football","Padel"].map(s => `
-          <button data-action="onboard-toggle-sport" data-sport="${s}" class="gl-chip ${f.sports.includes(s) ? "active" : ""}" style="flex:1;justify-content:center;padding:16px 10px;font-size:14px;">${s}</button>
+  } else if(step === 1){
+    viewHtml = `
+      <div class="gl-display" style="font-size:18px;margin-bottom:8px;">Which sports do you play?</div>
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        ${["Football","Volleyball"].map(s => `
+          <button data-action="onboard-sport" data-value="${s}" class="gl-chip ${f.sports.includes(s)?"active":""}" style="flex:1;padding:16px;font-size:14px;justify-content:center;">${s}</button>
         `).join("")}
       </div>
     `;
-  } else if(step === "level"){
-    body = `
-      <div class="gl-display" style="font-size:20px;margin-bottom:8px;">What's your level?</div>
-      <p style="color:var(--muted);font-size:13px;margin-bottom:18px;">Be honest — other players will rate you after each match, so this evens out over time.</p>
-      <div style="display:flex;flex-direction:column;gap:8px;">
+  } else if(step === 2){
+    viewHtml = `
+      <div class="gl-display" style="font-size:18px;margin-bottom:8px;">How many times a week do you play sports?</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+        ${["Less than once a week", "1-2 times a week", "3-4 times a week", "5+ times a week"].map(freq => `
+          <button data-action="onboard-freq" data-value="${freq}" class="gl-chip ${f.frequency===freq?"active":""}" style="padding:14px;justify-content:flex-start;">${freq}</button>
+        `).join("")}
+      </div>
+    `;
+  } else if(step === 3){
+    viewHtml = `
+      <div class="gl-display" style="font-size:18px;margin-bottom:8px;">What experience level are you?</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
         ${LEVELS.map(l => `
-          <button data-action="onboard-select-level" data-level="${l}" class="gl-chip ${f.level === l ? "active" : ""}" style="justify-content:flex-start;padding:14px;">${l}</button>
+          <button data-action="onboard-level" data-value="${l}" class="gl-chip ${f.level===l?"active":""}" style="padding:14px;justify-content:flex-start;">${l}</button>
         `).join("")}
       </div>
     `;
-  } else if(step === "hub"){
-    body = `
-      <div class="gl-display" style="font-size:20px;margin-bottom:8px;">Your local hub?</div>
-      <p style="color:var(--muted);font-size:13px;margin-bottom:18px;">You'll see parties and alerts from this area first.</p>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+  } else if(step === 4){
+    viewHtml = `
+      <div class="gl-display" style="font-size:18px;margin-bottom:8px;">Where do you currently live?</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
         ${HUBS.map(h => `
-          <button data-action="onboard-select-hub" data-hub="${h}" class="gl-chip ${f.hub === h ? "active" : ""}" style="padding:10px 14px;">${h}</button>
+          <button data-action="onboard-home" data-value="${h}" class="gl-chip ${f.homeRegion===h?"active":""}" style="padding:10px 14px;">${h}</button>
+        `).join("")}
+      </div>
+    `;
+  } else if(step === 5){
+    viewHtml = `
+      <div class="gl-display" style="font-size:18px;margin-bottom:8px;">What is your preferred playing region?</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+        ${HUBS.map(h => `
+          <button data-action="onboard-pref" data-value="${h}" class="gl-chip ${f.preferredRegion===h?"active":""}" style="padding:10px 14px;">${h}</button>
         `).join("")}
       </div>
     `;
   }
 
-  const canNext = (step === "name" && f.name.trim().length > 0) ||
-                  (step === "sports" && f.sports.length > 0) ||
-                  (step === "level" && !!f.level) ||
-                  (step === "hub" && !!f.hub);
+  const valid = (step === 0 ? f.name.trim().length > 0 : step === 1 ? f.sports.length > 0 : true);
 
-  return `<div class="gl-root">
-    <div class="gl-scroll" style="padding-bottom:24px;display:flex;flex-direction:column;height:100%;">
-      <div style="margin-bottom:24px;">
+  return `
+    <div class="gl-scroll" style="display:flex;flex-direction:column;height:100%;">
+      <div style="margin-bottom:20px;">
         <div class="gl-display" style="font-size:22px;margin-bottom:4px;">Game<span style="color:var(--grass-bright);">Link</span></div>
-        <div style="color:var(--muted);font-size:13px;">Lisbon · Football &amp; Padel</div>
+        <div style="color:var(--muted);font-size:13px;">Player Network Survey</div>
       </div>
-      <div class="gl-progressbar" style="margin-bottom:28px;"><div class="gl-progressfill" style="width:${((state.onboardStep+1)/steps.length)*100}%"></div></div>
-      <div style="flex:1;">${body}</div>
+      <div class="gl-progressbar" style="margin-bottom:24px;"><div class="gl-progressfill" style="width:${((step+1)/6)*100}%"></div></div>
+      <div style="flex:1;">${viewHtml}</div>
       <div style="display:flex;gap:10px;margin-top:24px;">
-        ${state.onboardStep > 0 ? `<button data-action="onboard-back" class="gl-btn gl-btn-outline" style="flex:0 0 auto;padding:13px 16px;">${icon("chevronLeft",16)}</button>` : ""}
-        <button data-action="onboard-next" id="onboardNextBtn" class="gl-btn" style="flex:1;" ${canNext ? "" : "disabled"}>
-          ${state.onboardStep === steps.length - 1 ? "Enter GameLink" : "Continue"}
-        </button>
+        ${step > 0 ? `<button data-action="onboard-back" class="gl-btn gl-btn-outline" style="padding:13px 16px;">${icon("chevronLeft",16)}</button>` : ""}
+        <button data-action="onboard-next" class="gl-btn" style="flex:1;" ${valid ? "" : "disabled"}>${step === 5 ? "Complete Survey" : "Continue"}</button>
       </div>
     </div>
-  </div>`;
+  `;
 }
 
 function renderHome(){
-  const parties = state.data.parties
-    .filter(p => p.status !== "completed")
-    .filter(p => state.hubFilter === "All" || p.hub === state.hubFilter)
-    .filter(p => state.sportFilter === "All" || p.sport === state.sportFilter)
-    .sort((a,b) => new Date(a.datetime) - new Date(b.datetime));
-
-  const cards = parties.length === 0 ? `
-    <div style="text-align:center;padding:50px 20px;color:var(--muted);">
-      ${icon("alertCircle",28)}
-      <div style="font-weight:700;margin:10px 0 4px 0;color:var(--chalk);">No parties here yet</div>
-      <div style="font-size:13px;">Be the first to start one in this area — invite friends to fill it fast.</div>
-    </div>
-  ` : parties.map(renderPartyCard).join("");
+  const filterParties = state.data.parties.filter(p => {
+    if(p.privacy === "private") return false; // Private rooms hidden from public discovery
+    if(state.sportFilter !== "All" && p.sport !== state.sportFilter) return false;
+    if(state.hubFilter !== "All" && p.hub !== state.hubFilter) return false;
+    return true;
+  });
 
   return `
     <div class="gl-topbar">
       <div class="gl-logo gl-display">Game<span>Link</span></div>
-      <button data-action="open-create" class="gl-btn gl-btn-amber" style="padding:9px 14px;font-size:12px;">${icon("plus",14)} Party</button>
+      <button data-action="open-create" class="gl-btn gl-btn-amber" style="padding:9px 14px;font-size:12px;">${icon("plus",14)} Host Game</button>
     </div>
     <div class="gl-scroll">
       <div class="gl-chip-row">
-        ${["All","Football","Padel"].map(s => `<button data-action="filter-sport" data-value="${s}" class="gl-chip ${state.sportFilter===s?"active":""}">${s}</button>`).join("")}
+        ${["All","Football","Volleyball"].map(s => `<button data-action="filter-sport" data-value="${s}" class="gl-chip ${state.sportFilter===s?"active":""}">${s}</button>`).join("")}
       </div>
       <div class="gl-chip-row">
         ${["All",...HUBS].map(h => `<button data-action="filter-hub" data-value="${h}" class="gl-chip ${state.hubFilter===h?"active":""}">${icon("mapPin",11)} ${h}</button>`).join("")}
       </div>
-      ${cards}
+      <div class="gl-label" style="margin-top:8px;margin-bottom:12px;">Discover Open Matches</div>
+      ${filterParties.length === 0 ? `<div style="padding:40px 10px; text-align:center; color:var(--muted);">No matches match your active criteria filters.</div>` : filterParties.map(renderMatchCard).join("")}
     </div>
   `;
 }
 
-function renderPartyCard(party){
+function renderMatchCard(party){
   const filled = party.slots.filter(Boolean).length;
-  const styleTag = STYLES.find(s => s.id === party.style);
-  const needsGKVisible = party.needsGK && party.sport === "Football" && !party.slots.some(s => s && s.position === "GK");
+  const styleOpt = STYLES.find(s => s.id === party.style);
   return `
     <div class="gl-card" data-action="open-party" data-id="${party.id}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
         <div>
-          <div class="gl-display" style="font-size:16px;">${party.sport} · ${party.format}</div>
-          <div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;margin-top:3px;">
-            ${icon("mapPin",11)} ${party.hub} &nbsp;·&nbsp; ${icon("clock",11)} ${fmtDate(party.datetime)}
-          </div>
-        </div>
-        <span class="gl-tag ${styleTag.id}">${icon(styleTag.icon,11)} ${styleTag.label.split(" / ")[0]}</span>
-      </div>
-      ${needsGKVisible ? `<div style="margin-bottom:10px;"><span class="gl-tag gk-tag">🧤 Goalkeeper needed</span></div>` : ""}
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;">${icon("users",13)} ${filled}/${party.slotsTotal} joined</div>
-        <div style="font-size:11px;font-weight:700;color:${party.status==="full"?"var(--grass-bright)":"var(--muted)"};">
-          ${party.status === "full" ? "SQUAD FULL ✓" : `${party.slotsTotal - filled} spots left`}
-        </div>
-      </div>
-      <div class="gl-progressbar" style="margin-top:8px;"><div class="gl-progressfill" style="width:${(filled/party.slotsTotal)*100}%"></div></div>
-    </div>
-  `;
-}
-
-function renderPartyDetail(){
-  const party = state.data.parties.find(p => p.id === state.activePartyId);
-  if(!party) return `<div class="gl-scroll">Party not found.</div>`;
-  const profile = state.profile;
-  const isHost = party.hostId === profile.id;
-  const filled = party.slots.filter(Boolean).length;
-  const iAmIn = party.slots.some(s => s && s.playerId === profile.id);
-  const styleTag = STYLES.find(s => s.id === party.style);
-  const missingOne = party.slotsTotal - filled === 1;
-
-  const slotsHtml = party.slots.map((slot, i) => {
-    const isGK = party.sport === "Football" && slot && slot.position === "GK";
-    const joinable = !slot && !iAmIn && party.status !== "completed";
-    return `<div class="gl-slot ${slot ? "filled" : ""} ${isGK ? "gk" : ""} ${joinable ? "joinable" : ""}"
-      ${joinable ? `data-action="join-slot" data-index="${i}"` : ""} title="${slot ? slot.name : "Open slot"}">
-      ${slot ? slot.name.slice(0,2).toUpperCase() : "+"}
-    </div>`;
-  }).join("");
-
-  let actionBlock = "";
-  if(!iAmIn && party.status === "open"){
-    actionBlock += `<button data-action="join-first-open" class="gl-btn" style="width:100%;margin-bottom:12px;">${icon("plus",16)} Join this party</button>`;
-  }
-  if(iAmIn && party.status !== "completed"){
-    actionBlock += `<div style="display:flex;align-items:center;gap:8px;color:var(--grass-bright);font-size:13px;font-weight:700;margin-bottom:12px;">${icon("check",16)} You're in this squad</div>`;
-  }
-  if(missingOne && party.status === "open"){
-    actionBlock += `<button data-action="free-agent" class="gl-btn gl-btn-outline" style="width:100%;margin-bottom:12px;">${icon("megaphone",15)} Send free-agent alert — 1 spot left</button>`;
-  }
-  if(isHost && party.status === "full" && !state.showRating){
-    actionBlock += `<button data-action="mark-played-start" class="gl-btn gl-btn-amber" style="width:100%;">${icon("trophy",15)} Mark match as played</button>`;
-  }
-  if(isHost && state.showRating){
-    actionBlock += `
-      <div class="gl-card" style="cursor:default;">
-        <div style="font-weight:700;margin-bottom:4px;">Who didn't show up?</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Tap anyone who no-showed — this quietly adjusts their reliability score.</div>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
-          ${party.slots.filter(Boolean).map(s => {
-            const active = state.noShows.includes(s.playerId);
-            return `<button data-action="toggle-noshow" data-id="${s.playerId}" class="gl-chip" style="justify-content:flex-start;padding:10px 12px;${active ? "background:var(--danger);border-color:var(--danger);color:#fff;" : ""}">${s.name}</button>`;
-          }).join("")}
-        </div>
-        <button data-action="confirm-mark-played" class="gl-btn" style="width:100%;">Confirm &amp; log match</button>
-      </div>
-    `;
-  }
-  if(party.status === "completed"){
-    actionBlock += `<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">${icon("trophy",22)}<br/>This match has been logged.</div>`;
-  }
-
-  return `
-    <div class="gl-topbar">
-      <button data-action="back-home" class="gl-navitem" style="padding:0;">${icon("chevronLeft",20)}</button>
-      <div class="gl-display" style="font-size:15px;">${party.sport} Party</div>
-      <div style="width:20px;"></div>
-    </div>
-    <div class="gl-scroll">
-      <div class="gl-card" style="cursor:default;">
-        <div class="gl-display" style="font-size:20px;margin-bottom:6px;">${party.sport} · ${party.format}</div>
-        <div style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-bottom:10px;">
-          ${icon("mapPin",13)} ${party.hub} &nbsp;·&nbsp; ${icon("clock",13)} ${fmtDate(party.datetime)}
-        </div>
-        <span class="gl-tag ${styleTag.id}">${icon(styleTag.icon,12)} ${styleTag.label}</span>
-      </div>
-      <div class="gl-label" style="margin-top:18px;">Squad (${filled}/${party.slotsTotal})</div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;">${slotsHtml}</div>
-      ${actionBlock}
-    </div>
-  `;
-}
-
-function renderCreateModal(){
-  const f = state.createForm;
-  return `
-    <div class="gl-modal-backdrop" data-action="close-create-backdrop">
-      <div class="gl-modal" onclick="event.stopPropagation()">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-          <div class="gl-display" style="font-size:18px;">Start a party</div>
-          <button data-action="close-create" class="gl-navitem" style="padding:0;">${icon("x",20)}</button>
-        </div>
-
-        <label class="gl-label">Sport</label>
-        <div style="display:flex;gap:8px;margin-bottom:16px;">
-          ${["Football","Padel"].map(s => `<button data-action="create-select-sport" data-sport="${s}" class="gl-chip ${f.sport===s?"active":""}" style="flex:1;justify-content:center;padding:12px;">${s}</button>`).join("")}
-        </div>
-
-        <label class="gl-label">Format</label>
-        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-          ${FORMATS[f.sport].map(fmt => `<button data-action="create-select-format" data-format="${fmt.label}" class="gl-chip ${f.format===fmt.label?"active":""}">${fmt.label}</button>`).join("")}
-        </div>
-
-        ${f.sport === "Football" ? `
-          <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:13px;cursor:pointer;">
-            <input type="checkbox" id="createGK" ${f.needsGK ? "checked" : ""} onchange="state.createForm.needsGK=this.checked;" />
-            Highlight that a goalkeeper is needed
-          </label>
-        ` : ""}
-
-        <label class="gl-label">Hub</label>
-        <select class="gl-select" id="createHub" style="margin-bottom:16px;">
-          ${HUBS.map(h => `<option value="${h}">${h}</option>`).join("")}
-        </select>
-
-        <div class="gl-row" style="margin-bottom:16px;">
-          <div class="gl-col">
-            <label class="gl-label">Date</label>
-            <input type="date" class="gl-input" id="createDate" min="${new Date().toISOString().split("T")[0]}" />
-          </div>
-          <div class="gl-col">
-            <label class="gl-label">Time</label>
-            <input type="time" class="gl-input" id="createTime" value="19:00" />
-          </div>
-        </div>
-
-        <label class="gl-label">Match vibe</label>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:22px;">
-          ${STYLES.map(s => `<button data-action="create-select-style" data-style="${s.id}" class="gl-chip ${f.style===s.id?"active":""}" style="justify-content:flex-start;padding:12px;">${icon(s.icon,14)} ${s.label}</button>`).join("")}
-        </div>
-
-        <button data-action="create-submit" class="gl-btn" style="width:100%;">Create party</button>
-      </div>
-    </div>
-  `;
-}
-
-function renderLeaderboard(){
-  const sorted = Object.values(state.data.players).sort((a,b) => b.matches - a.matches);
-  const rows = sorted.length === 0
-    ? `<div style="color:var(--muted);text-align:center;padding:40px;">No matches logged yet.</div>`
-    : sorted.map((p,i) => `
-      <div class="gl-card" style="cursor:default;display:flex;align-items:center;gap:12px;">
-        <div class="gl-display" style="font-size:16px;width:26px;color:${i===0?"var(--amber)":"var(--muted)"};">${i+1}</div>
-        <div style="flex:1;">
-          <div style="font-weight:700;">${p.name}</div>
-          <div style="font-size:12px;color:var(--muted);">${p.reliability}% reliability</div>
-        </div>
-        <div style="text-align:right;">
-          <div class="gl-display" style="font-size:15px;">${p.matches}</div>
-          <div style="font-size:10px;color:var(--muted);">matches</div>
-        </div>
-      </div>
-    `).join("");
-
-  return `
-    <div class="gl-topbar"><div class="gl-display" style="font-size:18px;">Leaderboard</div></div>
-    <div class="gl-scroll">
-      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">Ranked by matches played across all hubs.</p>
-      ${rows}
-    </div>
-  `;
-}
-
-function renderProfile(){
-  const p = state.profile;
-  return `
-    <div class="gl-topbar"><div class="gl-display" style="font-size:18px;">Profile</div></div>
-    <div class="gl-scroll">
-      <div class="gl-card" style="cursor:default;text-align:center;padding:28px;">
-        <div style="width:64px;height:64px;border-radius:50%;background:var(--grass);display:flex;align-items:center;justify-content:center;margin:0 auto 14px auto;font-size:22px;font-weight:800;color:#0F1A14;">
-          ${p.name.slice(0,2).toUpperCase()}
-        </div>
-        <div class="gl-display" style="font-size:18px;margin-bottom:4px;">${p.name}</div>
-        <div style="font-size:12px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:5px;">
-          ${icon("mapPin",11)} ${p.hub} · ${p.level}
-        </div>
-      </div>
-      <div style="display:flex;gap:10px;margin-bottom:12px;">
-        <div class="gl-card" style="cursor:default;flex:1;text-align:center;">
-          <div class="gl-display" style="font-size:22px;color:var(--grass-bright);">${p.matches}</div>
-          <div style="font-size:11px;color:var(--muted);">Matches played</div>
-        </div>
-        <div class="gl-card" style="cursor:default;flex:1;text-align:center;">
-          <div class="gl-display" style="font-size:22px;color:var(--amber);">${p.reliability}%</div>
-          <div style="font-size:11px;color:var(--muted);">Reliability</div>
-        </div>
-      </div>
-      <div class="gl-card" style="cursor:default;">
-        <div class="gl-label">Sports</div>
-        <div style="display:flex;gap:8px;">
-          ${p.sports.map(s => `<span class="gl-chip active" style="cursor:default;">${s}</span>`).join("")}
-        </div>
-      </div>
-      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:20px;line-height:1.6;">
-        ${icon("shield",13)} Reliability is built from real post-match feedback, not self-reporting.
-      </div>
-    </div>
-  `;
-}
-
-function renderBottomNav(){
-  return `
-    <div class="gl-bottomnav">
-      <button data-action="set-screen" data-screen="home" class="gl-navitem ${state.screen==="home"?"active":""}">${icon("home",19)} Parties</button>
-      <button data-action="open-create" class="gl-navitem">
-        <div style="width:40px;height:40px;border-radius:50%;background:var(--grass);display:flex;align-items:center;justify-content:center;margin-top:-18px;box-shadow:0 4px 12px rgba(76,154,90,0.4);">
-          ${icon("plus",20,"#0F1A14")}
-        </div>
-      </button>
-      <button data-action="set-screen" data-screen="leaderboard" class="gl-navitem ${state.screen==="leaderboard"?"active":""}">${icon("trophy",19)} Ranks</button>
-      <button data-action="set-screen" data-screen="profile" class="gl-navitem ${state.screen==="profile"?"active":""}">${icon("user",19)} Profile</button>
-    </div>
-  `;
-}
-
-function renderToast(){
-  return `<div class="gl-toast">${icon("megaphone",16,"var(--grass-bright)")}<span>${state.toast}</span></div>`;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Master render                                                      */
-/* ------------------------------------------------------------------ */
-function render(){
-  const app = document.getElementById("app");
-  if(state.loading){ app.innerHTML = renderLoading(); return; }
-  if(!state.profile){ app.innerHTML = renderOnboarding(); bindEvents(); return; }
-
-  let screenHtml = "";
-  if(state.screen === "home") screenHtml = renderHome();
-  else if(state.screen === "party") screenHtml = renderPartyDetail();
-  else if(state.screen === "leaderboard") screenHtml = renderLeaderboard();
-  else if(state.screen === "profile") screenHtml = renderProfile();
-
-  app.innerHTML = `<div class="gl-root">
-    ${screenHtml}
-    ${renderBottomNav()}
-    ${state.showCreate ? renderCreateModal() : ""}
-    ${state.toast ? renderToast() : ""}
-  </div>`;
-  bindEvents();
-}
-
-/* ------------------------------------------------------------------ */
-/*  Event delegation                                                    */
-/* ------------------------------------------------------------------ */
-function bindEvents(){
-  document.querySelectorAll("[data-action]").forEach(el => {
-    el.addEventListener("click", handleAction);
-  });
-}
-
-function handleAction(e){
-  const el = e.currentTarget;
-  const action = el.dataset.action;
-
-  if(action === "onboard-toggle-sport"){
-    const s = el.dataset.sport;
-    const list = state.onboardForm.sports;
-    state.onboardForm.sports = list.includes(s) ? list.filter(x => x !== s) : [...list, s];
-    render();
-  }
-  else if(action === "onboard-select-level"){ state.onboardForm.level = el.dataset.level; render(); }
-  else if(action === "onboard-select-hub"){ state.onboardForm.hub = el.dataset.hub; render(); }
-  else if(action === "onboard-back"){ state.onboardStep -= 1; render(); }
-  else if(action === "onboard-next"){
-    const steps = ["name","sports","level","hub"];
-    if(steps[state.onboardStep] === "name"){
-      const val = document.getElementById("onboardName").value;
-      state.onboardForm.name = val;
-      if(!val.trim()) return;
-    }
-    if(state.onboardStep === steps.length - 1){ completeOnboarding(); }
-    else { state.onboardStep += 1; render(); }
-  }
-  else if(action === "set-screen"){ state.screen = el.dataset.screen; state.activePartyId = null; render(); }
-  else if(action === "open-create"){
-    state.createForm = { sport:"Football", format: FORMATS.Football[0].label, needsGK:false, style:"chill" };
-    state.showCreate = true; render();
-  }
-  else if(action === "close-create" || action === "close-create-backdrop"){ state.showCreate = false; render(); }
-  else if(action === "open-party"){ state.activePartyId = el.dataset.id; state.screen = "party"; state.showRating=false; state.noShows=[]; render(); }
-  else if(action === "back-home"){ state.screen = "home"; state.activePartyId = null; state.showRating=false; state.noShows=[]; render(); }
-  else if(action === "filter-sport"){ state.sportFilter = el.dataset.value; render(); }
-  else if(action === "filter-hub"){ state.hubFilter = el.dataset.value; render(); }
-  else if(action === "create-select-sport"){
-    state.createForm.sport = el.dataset.sport;
-    state.createForm.format = FORMATS[state.createForm.sport][0].label;
-    render();
-  }
-  else if(action === "create-select-format"){ state.createForm.format = el.dataset.format; render(); }
-  else if(action === "create-select-style"){ state.createForm.style = el.dataset.style; render(); }
-  else if(action === "create-submit"){ createParty(); }
-  else if(action === "join-first-open"){
-    const party = state.data.parties.find(p => p.id === state.activePartyId);
-    const idx = party.slots.findIndex(s => !s);
-    if(idx === -1) return;
-    let position = party.sport === "Football" ? "Outfield" : null;
-    if(party.sport === "Football" && party.needsGK && !party.slots.some(s => s && s.position === "GK")){
-      if(confirm("Join as Goalkeeper (GK)?")) position = "GK";
-    }
-    joinSlot(party, idx, position);
-  }
-  else if(action === "join-slot"){
-    const party = state.data.parties.find(p => p.id === state.activePartyId);
-    const idx = parseInt(el.dataset.index, 10);
-    let position = party.sport === "Football" ? "Outfield" : null;
-    if(party.sport === "Football" && party.needsGK && !party.slots.some(s => s && s.position === "GK")){
-      if(confirm("Join as Goalkeeper (GK)?")) position = "GK";
-    }
-    joinSlot(party, idx, position);
-  }
-  else if(action === "free-agent"){
-    const party = state.data.parties.find(p => p.id === state.activePartyId);
-    flash(`📢 Free-agent alert sent to available players in ${party.hub}.`);
-  }
-  else if(action === "mark-played-start"){ state.showRating = true; render(); }
-  else if(action === "toggle-noshow"){
-    const id = el.dataset.id;
-    state.noShows = state.noShows.includes(id) ? state.noShows.filter(x => x !== id) : [...state.noShows, id];
-    render();
-  }
-  else if(action === "confirm-mark-played"){
-    const party = state.data.parties.find(p => p.id === state.activePartyId);
-    markPlayed(party);
-  }
-}
-
-/* ------------------------------------------------------------------ */
-init();
-</script>
-</body>
-</html>
+          <div class="gl-display" style="font-size:15px;">${party.sport} <span style="font-size:12px; font-weight:normal; color
