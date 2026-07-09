@@ -1,14 +1,10 @@
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  Users, MapPin, Plus, Trophy, User, Home, Clock, Shield,
-  ChevronLeft, X, Check, Megaphone, Flame, Coffee, Target,
-  Circle, AlertCircle,
-} from "lucide-react";
-
-/* ------------------------------------------------------------------ */
-/*  Design tokens & global styles                                      */
-/* ------------------------------------------------------------------ */
-const STYLE = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GameLink</title>
+<style>
   :root{
     --ink:#0F1A14;
     --surface:#16241C;
@@ -22,17 +18,20 @@ const STYLE = `
     --azulejo:#3D84A8;
     --danger:#C0564A;
   }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:#0a0f0c; }
+  body{ display:flex; justify-content:center; padding:20px 10px; min-height:100vh; }
   .gl-root{
     background:var(--ink);
     color:var(--chalk);
-    min-height:600px;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     display:flex; flex-direction:column;
-    max-width:430px; margin:0 auto;
+    width:100%; max-width:430px;
+    height:700px;
     border-radius:20px;
     overflow:hidden;
     position:relative;
-    box-shadow: 0 0 0 1px var(--line);
+    box-shadow: 0 0 0 1px var(--line), 0 20px 60px rgba(0,0,0,0.5);
   }
   .gl-display{
     font-family: 'Arial Narrow', 'Helvetica Neue', sans-serif;
@@ -46,6 +45,7 @@ const STYLE = `
     display:flex; align-items:center; justify-content:space-between;
     border-bottom:1px solid var(--line);
     background: linear-gradient(180deg, rgba(76,154,90,0.10), transparent);
+    flex-shrink:0;
   }
   .gl-logo{ font-size:20px; letter-spacing:0.04em; }
   .gl-logo span{ color:var(--grass-bright); }
@@ -59,6 +59,7 @@ const STYLE = `
     cursor:pointer;
     white-space:nowrap;
     transition:all .15s ease;
+    font-family:inherit;
   }
   .gl-chip.active{ background:var(--grass); color:#0F1A14; border-color:var(--grass); }
   .gl-chip-row{ display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:14px; }
@@ -84,12 +85,11 @@ const STYLE = `
     font-size:14px;
     cursor:pointer;
     transition: background .15s ease;
+    font-family:inherit;
   }
   .gl-btn:hover{ background:var(--grass-bright); }
   .gl-btn:disabled{ background:var(--line); color:var(--muted); cursor:not-allowed; }
-  .gl-btn-outline{
-    background:transparent; border:1px solid var(--line); color:var(--chalk);
-  }
+  .gl-btn-outline{ background:transparent; border:1px solid var(--line); color:var(--chalk); }
   .gl-btn-outline:hover{ background:var(--surface-2); }
   .gl-btn-amber{ background:var(--amber); }
   .gl-btn-amber:hover{ background:#F0B65C; }
@@ -102,6 +102,7 @@ const STYLE = `
     border-radius:10px;
     font-size:14px;
     outline:none;
+    font-family:inherit;
   }
   .gl-input:focus, .gl-select:focus{ border-color:var(--grass); }
   .gl-label{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); margin-bottom:7px; display:block; }
@@ -117,7 +118,7 @@ const STYLE = `
     display:flex; flex-direction:column; align-items:center; gap:3px;
     color:var(--muted); background:none; border:none; cursor:pointer;
     font-size:10px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase;
-    padding:4px 10px;
+    padding:4px 10px; font-family:inherit;
   }
   .gl-navitem.active{ color:var(--grass-bright); }
   .gl-slot{
@@ -131,6 +132,7 @@ const STYLE = `
   .gl-slot.filled{ border-style:solid; border-color:var(--grass); background:rgba(76,154,90,0.18); color:var(--chalk); }
   .gl-slot.gk{ border-radius:50%; border-color:var(--amber); }
   .gl-slot.gk.filled{ background:rgba(232,162,61,0.2); border-color:var(--amber); }
+  .gl-slot.joinable{ cursor:pointer; }
   .gl-tag{
     font-size:11px; font-weight:700; padding:4px 9px; border-radius:100px;
     display:inline-flex; align-items:center; gap:4px;
@@ -138,6 +140,7 @@ const STYLE = `
   .gl-tag.chill{ background:rgba(61,132,168,0.18); color:#7BB8D9; }
   .gl-tag.competitive{ background:rgba(192,86,74,0.2); color:#E08A7D; }
   .gl-tag.drills{ background:rgba(232,162,61,0.18); color:var(--amber); }
+  .gl-tag.gk-tag{ background:rgba(232,162,61,0.18); color:var(--amber); }
   .gl-toast{
     position:absolute; bottom:88px; left:16px; right:16px;
     background:var(--surface-2); border:1px solid var(--grass);
@@ -160,7 +163,40 @@ const STYLE = `
   @keyframes gl-slideup{ from{ transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;} }
   .gl-progressbar{ height:5px; background:var(--surface-2); border-radius:100px; overflow:hidden; }
   .gl-progressfill{ height:100%; background:var(--grass); transition:width .3s ease; }
-`;
+  .gl-row{ display:flex; gap:10px; }
+  .gl-col{ flex:1; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ------------------------------------------------------------------ */
+/*  Icons (inline SVG, no external deps)                               */
+/* ------------------------------------------------------------------ */
+const ICON_PATHS = {
+  home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/>',
+  trophy: '<path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a3 3 0 0 0 3 4"/><path d="M17 5h3a3 3 0 0 1-3 4"/><path d="M12 13v4"/><path d="M8 21h8"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  mapPin: '<path d="M12 22s7-7.5 7-12a7 7 0 1 0-14 0c0 4.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.3"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+  users: '<circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-5 7-5s7 1.7 7 5"/><circle cx="17" cy="9.5" r="2.3"/><path d="M16.5 15c2.6 0 4.5 1.6 4.5 4.5"/>',
+  check: '<polyline points="4,12 9,17 20,6"/>',
+  x: '<line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/>',
+  chevronLeft: '<polyline points="15,5 8,12 15,19"/>',
+  megaphone: '<path d="M3 10v4h3l7 4V6l-7 4H3z"/><path d="M17 8.5a3.5 3.5 0 0 1 0 7"/>',
+  shield: '<path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/>',
+  alertCircle: '<circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16.3" r="0.6" fill="currentColor" stroke="none"/>',
+  coffee: '<path d="M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8z"/><path d="M17 9.5h1.2a2.3 2.3 0 0 1 0 4.6H17"/>',
+  flame: '<path d="M12 2c1 4-4 5-4 9a4 4 0 0 0 8 0c0-1.5-1-2.5-1-4 2 1 3 3 3 5a6 6 0 0 1-12 0c0-5 4-6 6-10z"/>',
+  target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.7" fill="currentColor" stroke="none"/>',
+};
+function icon(name, size, color){
+  size = size || 16;
+  const c = color ? `color:${color};` : '';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;${c}">${ICON_PATHS[name] || ''}</svg>`;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -176,804 +212,687 @@ const FORMATS = {
   Padel: [{ label: "4 players", total: 4 }],
 };
 const STYLES = [
-  { id: "chill", label: "Chill / Friendly", icon: Coffee },
-  { id: "competitive", label: "Sweaty / Competitive", icon: Flame },
-  { id: "drills", label: "Training / Drills", icon: Target },
+  { id: "chill", label: "Chill / Friendly", icon: "coffee" },
+  { id: "competitive", label: "Sweaty / Competitive", icon: "flame" },
+  { id: "drills", label: "Training / Drills", icon: "target" },
 ];
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const emptyData = () => ({ players: {}, parties: [] });
 
-/* ------------------------------------------------------------------ */
-/*  Storage helpers                                                    */
-/* ------------------------------------------------------------------ */
-async function loadShared() {
-  try {
-    const res = await window.storage.get("gamelink-data", true);
-    return res ? JSON.parse(res.value) : emptyData();
-  } catch {
-    return emptyData();
-  }
+function fmtDate(iso){
+  const d = new Date(iso);
+  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  return `${days[d.getDay()]} ${d.getDate()}/${d.getMonth()+1} · ${String(d.getHours()).padStart(2,"0")}:00`;
 }
-async function saveShared(data) {
-  try {
-    await window.storage.set("gamelink-data", JSON.stringify(data), true);
-  } catch (e) {
-    console.error("Storage save failed", e);
-  }
+function nextDate(daysFromNow, hour){
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  d.setHours(hour,0,0,0);
+  return d.toISOString();
 }
-async function loadProfile() {
-  try {
-    const res = await window.storage.get("my-profile", false);
-    return res ? JSON.parse(res.value) : null;
-  } catch {
-    return null;
-  }
-}
-async function saveProfile(profile) {
-  try {
-    await window.storage.set("my-profile", JSON.stringify(profile), false);
-  } catch (e) {
-    console.error("Profile save failed", e);
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/*  Seed demo parties so the app never feels empty on first load       */
-/* ------------------------------------------------------------------ */
-function seedData() {
+function seedData(){
   const players = {
-    p_joao: { id: "p_joao", name: "João", matches: 14, reliability: 96 },
-    p_rita: { id: "p_rita", name: "Rita", matches: 9, reliability: 100 },
-    p_miguel: { id: "p_miguel", name: "Miguel", matches: 21, reliability: 88 },
-    p_ines: { id: "p_ines", name: "Inês", matches: 5, reliability: 100 },
+    p_joao: { id:"p_joao", name:"João", matches:14, reliability:96 },
+    p_rita: { id:"p_rita", name:"Rita", matches:9, reliability:100 },
+    p_miguel: { id:"p_miguel", name:"Miguel", matches:21, reliability:88 },
+    p_ines: { id:"p_ines", name:"Inês", matches:5, reliability:100 },
   };
   const parties = [
-    {
-      id: uid(), sport: "Padel", format: "4 players", slotsTotal: 4,
-      hub: "Cascais", datetime: nextDate(1, 18), style: "chill",
-      hostId: "p_rita", status: "open",
-      slots: [
-        { playerId: "p_rita", name: "Rita", position: null },
-        { playerId: "p_joao", name: "João", position: null },
-        null, null,
-      ],
-    },
-    {
-      id: uid(), sport: "Football", format: "5-a-side", slotsTotal: 10,
-      hub: "Estoril", datetime: nextDate(2, 20), style: "competitive",
-      hostId: "p_miguel", status: "open", needsGK: true,
-      slots: [
-        { playerId: "p_miguel", name: "Miguel", position: "Outfield" },
-        { playerId: "p_ines", name: "Inês", position: "Outfield" },
-        ...Array(8).fill(null),
-      ],
-    },
-    {
-      id: uid(), sport: "Football", format: "7-a-side", slotsTotal: 14,
-      hub: "Oeiras", datetime: nextDate(0, 19), style: "drills",
-      hostId: "p_joao", status: "open", needsGK: false,
-      slots: [
-        { playerId: "p_joao", name: "João", position: "Outfield" },
-        ...Array(13).fill(null),
-      ],
-    },
+    { id:uid(), sport:"Padel", format:"4 players", slotsTotal:4, hub:"Cascais", datetime:nextDate(1,18), style:"chill", hostId:"p_rita", status:"open", needsGK:false,
+      slots:[ {playerId:"p_rita",name:"Rita",position:null}, {playerId:"p_joao",name:"João",position:null}, null, null ] },
+    { id:uid(), sport:"Football", format:"5-a-side", slotsTotal:10, hub:"Estoril", datetime:nextDate(2,20), style:"competitive", hostId:"p_miguel", status:"open", needsGK:true,
+      slots:[ {playerId:"p_miguel",name:"Miguel",position:"Outfield"}, {playerId:"p_ines",name:"Inês",position:"Outfield"}, ...Array(8).fill(null) ] },
+    { id:uid(), sport:"Football", format:"7-a-side", slotsTotal:14, hub:"Oeiras", datetime:nextDate(0,19), style:"drills", hostId:"p_joao", status:"open", needsGK:false,
+      slots:[ {playerId:"p_joao",name:"João",position:"Outfield"}, ...Array(13).fill(null) ] },
   ];
   return { players, parties };
 }
-function nextDate(daysFromNow, hour) {
-  const d = new Date();
-  d.setDate(d.getDate() + daysFromNow);
-  d.setHours(hour, 0, 0, 0);
-  return d.toISOString();
-}
-function fmtDate(iso) {
-  const d = new Date(iso);
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  return `${days[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1} · ${String(d.getHours()).padStart(2, "0")}:00`;
-}
 
 /* ------------------------------------------------------------------ */
-/*  Main App                                                           */
+/*  Storage helpers                                                    */
 /* ------------------------------------------------------------------ */
-export default function App() {
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState(null);
-  const [data, setData] = useState(emptyData());
-  const [screen, setScreen] = useState("home");
-  const [activeParty, setActiveParty] = useState(null);
-  const [showCreate, setShowCreate] = useState(false);
-  const [hubFilter, setHubFilter] = useState("All");
-  const [sportFilter, setSportFilter] = useState("All");
-  const [toast, setToast] = useState(null);
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-  const flash = useCallback((msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2600);
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      const p = await loadProfile();
-      let shared = await loadShared();
-      if (shared.parties.length === 0 && !p) {
-        shared = seedData();
-        await saveShared(shared);
-      }
-      setProfile(p);
-      setData(shared);
-      setLoading(false);
-    })();
-  }, []);
-
-  async function persistData(next) {
-    setData(next);
-    await saveShared(next);
-  }
-
-  async function completeOnboarding(newProfile) {
-    const withId = { ...newProfile, id: "me_" + uid(), matches: 0, reliability: 100 };
-    setProfile(withId);
-    await saveProfile(withId);
-    const next = {
-      ...data,
-      players: { ...data.players, [withId.id]: { id: withId.id, name: withId.name, matches: 0, reliability: 100 } },
-    };
-    await persistData(next);
-    flash(`Welcome to GameLink, ${withId.name} 👋`);
-  }
-
-  function joinSlot(party, slotIndex, position) {
-    if (!profile) return;
-    const alreadyIn = party.slots.some((s) => s && s.playerId === profile.id);
-    if (alreadyIn) { flash("You're already in this party."); return; }
-    const newSlots = [...party.slots];
-    newSlots[slotIndex] = { playerId: profile.id, name: profile.name, position: position || null };
-    const isFull = newSlots.every((s) => s !== null);
-    const updatedParty = { ...party, slots: newSlots, status: isFull ? "full" : "open" };
-    const nextParties = data.parties.map((p) => (p.id === party.id ? updatedParty : p));
-    persistData({ ...data, parties: nextParties });
-    setActiveParty(updatedParty);
-    flash(isFull ? "You're in — squad is full! ⚽" : "You joined the party.");
-  }
-
-  function createParty(form) {
-    const fmt = FORMATS[form.sport].find((f) => f.label === form.format);
-    const slots = Array(fmt.total).fill(null);
-    slots[0] = { playerId: profile.id, name: profile.name, position: form.sport === "Football" ? "Outfield" : null };
-    const party = {
-      id: uid(),
-      sport: form.sport,
-      format: form.format,
-      slotsTotal: fmt.total,
-      hub: form.hub,
-      datetime: form.datetime,
-      style: form.style,
-      needsGK: form.sport === "Football" ? form.needsGK : false,
-      hostId: profile.id,
-      status: "open",
-      slots,
-    };
-    persistData({ ...data, parties: [party, ...data.parties] });
-    setShowCreate(false);
-    setActiveParty(party);
-    setScreen("party");
-    flash("Party created — waiting for players.");
-  }
-
-  function markPlayed(party, noShowIds) {
-    const nextPlayers = { ...data.players };
-    party.slots.filter(Boolean).forEach((s) => {
-      const existing = nextPlayers[s.playerId] || { id: s.playerId, name: s.name, matches: 0, reliability: 100 };
-      const didShow = !noShowIds.includes(s.playerId);
-      nextPlayers[s.playerId] = {
-        ...existing,
-        matches: existing.matches + (didShow ? 1 : 0),
-        reliability: Math.max(0, Math.min(100, existing.reliability + (didShow ? 1 : -12))),
-      };
-    });
-    const nextParties = data.parties.map((p) => (p.id === party.id ? { ...p, status: "completed" } : p));
-    persistData({ ...data, players: nextPlayers, parties: nextParties });
-    if (profile && nextPlayers[profile.id]) {
-      const updatedMe = { ...profile, matches: nextPlayers[profile.id].matches, reliability: nextPlayers[profile.id].reliability };
-      setProfile(updatedMe);
-      saveProfile(updatedMe);
-    }
-    setScreen("home");
-    setActiveParty(null);
-    flash("Match logged. Reliability updated.");
-  }
-
-  if (loading) {
-    return (
-      <div className="gl-root" style={{ alignItems: "center", justifyContent: "center", minHeight: 600 }}>
-        <style>{STYLE}</style>
-        <div className="gl-display" style={{ color: "var(--muted)", fontSize: 14 }}>Loading GameLink…</div>
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div className="gl-root">
-        <style>{STYLE}</style>
-        <Onboarding onDone={completeOnboarding} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="gl-root">
-      <style>{STYLE}</style>
-
-      {screen === "home" && (
-        <HomeScreen
-          data={data}
-          hubFilter={hubFilter}
-          setHubFilter={setHubFilter}
-          sportFilter={sportFilter}
-          setSportFilter={setSportFilter}
-          onOpenParty={(p) => { setActiveParty(p); setScreen("party"); }}
-          onCreate={() => setShowCreate(true)}
-        />
-      )}
-
-      {screen === "party" && activeParty && (
-        <PartyDetail
-          party={data.parties.find((p) => p.id === activeParty.id) || activeParty}
-          profile={profile}
-          onBack={() => { setScreen("home"); setActiveParty(null); }}
-          onJoin={joinSlot}
-          onMarkPlayed={markPlayed}
-          onFreeAgent={() => flash(`📢 Free-agent alert sent to available players in ${activeParty.hub}.`)}
-        />
-      )}
-
-      {screen === "leaderboard" && <Leaderboard players={data.players} />}
-
-      {screen === "profile" && <ProfileScreen profile={profile} />}
-
-      {showCreate && (
-        <CreatePartyModal
-          onClose={() => setShowCreate(false)}
-          onCreate={createParty}
-        />
-      )}
-
-      {toast && (
-        <div className="gl-toast">
-          <Megaphone size={16} color="var(--grass-bright)" />
-          <span>{toast}</span>
-        </div>
-      )}
-
-      <BottomNav screen={screen} setScreen={(s) => { setScreen(s); setActiveParty(null); }} onCreate={() => setShowCreate(true)} />
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Onboarding                                                         */
-/* ------------------------------------------------------------------ */
-function Onboarding({ onDone }) {
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState({ name: "", sports: [], level: "", hub: "" });
-
-  const steps = ["name", "sports", "level", "hub"];
-  const canNext = () => {
-    if (steps[step] === "name") return form.name.trim().length > 0;
-    if (steps[step] === "sports") return form.sports.length > 0;
-    if (steps[step] === "level") return !!form.level;
-    if (steps[step] === "hub") return !!form.hub;
-    return false;
-  };
-
-  function toggleSport(s) {
-    setForm((f) => ({ ...f, sports: f.sports.includes(s) ? f.sports.filter((x) => x !== s) : [...f.sports, s] }));
-  }
-
-  return (
-    <div className="gl-scroll" style={{ paddingBottom: 24, display: "flex", flexDirection: "column", minHeight: 600 }}>
-      <div style={{ marginBottom: 24 }}>
-        <div className="gl-display" style={{ fontSize: 22, marginBottom: 4 }}>
-          Game<span style={{ color: "var(--grass-bright)" }}>Link</span>
-        </div>
-        <div style={{ color: "var(--muted)", fontSize: 13 }}>Lisbon · Football & Padel</div>
-      </div>
-
-      <div className="gl-progressbar" style={{ marginBottom: 28 }}>
-        <div className="gl-progressfill" style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
-      </div>
-
-      <div style={{ flex: 1 }}>
-        {steps[step] === "name" && (
-          <>
-            <div className="gl-display" style={{ fontSize: 20, marginBottom: 8 }}>What's your name?</div>
-            <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 18 }}>This is how other players will see you in the lobby.</p>
-            <input
-              className="gl-input"
-              placeholder="e.g. Sofia Martins"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              autoFocus
-            />
-          </>
-        )}
-
-        {steps[step] === "sports" && (
-          <>
-            <div className="gl-display" style={{ fontSize: 20, marginBottom: 8 }}>Which sports do you play?</div>
-            <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 18 }}>We're starting with these two in Lisbon.</p>
-            <div style={{ display: "flex", gap: 10 }}>
-              {["Football", "Padel"].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => toggleSport(s)}
-                  className={`gl-chip ${form.sports.includes(s) ? "active" : ""}`}
-                  style={{ flex: 1, justifyContent: "center", padding: "16px 10px", fontSize: 14 }}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        {steps[step] === "level" && (
-          <>
-            <div className="gl-display" style={{ fontSize: 20, marginBottom: 8 }}>What's your level?</div>
-            <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 18 }}>Be honest — other players will rate you after each match, so this evens out over time.</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {LEVELS.map((l) => (
-                <button
-                  key={l}
-                  onClick={() => setForm((f) => ({ ...f, level: l }))}
-                  className={`gl-chip ${form.level === l ? "active" : ""}`}
-                  style={{ justifyContent: "flex-start", padding: "14px" }}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        {steps[step] === "hub" && (
-          <>
-            <div className="gl-display" style={{ fontSize: 20, marginBottom: 8 }}>Your local hub?</div>
-            <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 18 }}>You'll see parties and alerts from this area first.</p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {HUBS.map((h) => (
-                <button
-                  key={h}
-                  onClick={() => setForm((f) => ({ ...f, hub: h }))}
-                  className={`gl-chip ${form.hub === h ? "active" : ""}`}
-                  style={{ padding: "10px 14px" }}
-                >
-                  {h}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-
-      <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-        {step > 0 && (
-          <button className="gl-btn gl-btn-outline" style={{ flex: "0 0 auto", padding: "13px 16px" }} onClick={() => setStep((s) => s - 1)}>
-            <ChevronLeft size={16} />
-          </button>
-        )}
-        <button
-          className="gl-btn"
-          style={{ flex: 1 }}
-          disabled={!canNext()}
-          onClick={() => (step === steps.length - 1 ? onDone(form) : setStep((s) => s + 1))}
-        >
-          {step === steps.length - 1 ? "Enter GameLink" : "Continue"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Home                                                               */
-/* ------------------------------------------------------------------ */
-function HomeScreen({ data, hubFilter, setHubFilter, sportFilter, setSportFilter, onOpenParty, onCreate }) {
+// Keeps the shared blob from growing without bound as more people use the
+// demo — this is a likely cause of intermittent "internal server error"
+// writes, since everyone shares the same "gamelink-data" key.
+function pruneData(data){
+  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
   const parties = data.parties
-    .filter((p) => p.status !== "completed")
-    .filter((p) => hubFilter === "All" || p.hub === hubFilter)
-    .filter((p) => sportFilter === "All" || p.sport === sportFilter)
-    .sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+    .filter(p => {
+      if(p.status !== "completed") return true;
+      return now - new Date(p.datetime).getTime() < THIRTY_DAYS;
+    })
+    .slice(0, 150); // hard cap so payload never runs away
+  return { ...data, parties };
+}
 
-  return (
-    <>
-      <div className="gl-topbar">
-        <div className="gl-logo gl-display">Game<span>Link</span></div>
-        <button className="gl-btn gl-btn-amber" style={{ padding: "9px 14px", fontSize: 12 }} onClick={onCreate}>
-          <Plus size={14} /> Party
+async function retryingStorageSet(key, value, shared, attempts){
+  attempts = attempts || 3;
+  let lastErr = null;
+  for(let i = 0; i < attempts; i++){
+    try{
+      const res = await window.storage.set(key, value, shared);
+      if(res) return true;
+      lastErr = new Error("Storage set returned no result");
+    }catch(e){
+      lastErr = e;
+    }
+    if(i < attempts - 1) await sleep(400 * (i + 1)); // small backoff
+  }
+  console.error("Storage save failed after retries:", lastErr);
+  return false;
+}
+
+async function loadShared(){
+  try{ const res = await window.storage.get("gamelink-data", true); return res ? JSON.parse(res.value) : emptyData(); }
+  catch{ return emptyData(); }
+}
+async function saveShared(data){
+  const pruned = pruneData(data);
+  const ok = await retryingStorageSet("gamelink-data", JSON.stringify(pruned), true);
+  if(!ok) flashSaveWarning();
+  return ok;
+}
+async function loadProfile(){
+  try{ const res = await window.storage.get("my-profile", false); return res ? JSON.parse(res.value) : null; }
+  catch{ return null; }
+}
+async function saveProfile(p){
+  const ok = await retryingStorageSet("my-profile", JSON.stringify(p), false);
+  if(!ok) flashSaveWarning();
+  return ok;
+}
+
+// Throttled so a run of failures doesn't spam toasts on top of each other.
+let lastSaveWarningAt = 0;
+function flashSaveWarning(){
+  const now = Date.now();
+  if(now - lastSaveWarningAt < 8000) return;
+  lastSaveWarningAt = now;
+  flash("⚠️ Couldn't sync to the server — your changes are still here, but may not survive a refresh. Retrying…");
+}
+
+/* ------------------------------------------------------------------ */
+/*  App State                                                           */
+/* ------------------------------------------------------------------ */
+let state = {
+  loading: true,
+  profile: null,
+  data: emptyData(),
+  screen: "home",
+  activePartyId: null,
+  showCreate: false,
+  hubFilter: "All",
+  sportFilter: "All",
+  toast: null,
+  toastTimer: null,
+  onboardStep: 0,
+  onboardForm: { name: "", sports: [], level: "", hub: "" },
+  createForm: { sport: "Football", format: FORMATS.Football[0].label, needsGK: false, style: "chill" },
+  showRating: false,
+  noShows: [],
+};
+
+function flash(msg){
+  state.toast = msg;
+  render();
+  clearTimeout(state.toastTimer);
+  state.toastTimer = setTimeout(() => { state.toast = null; render(); }, 2600);
+}
+
+async function persistData(next){
+  state.data = next;
+  await saveShared(next);
+}
+
+async function init(){
+  const p = await loadProfile();
+  let shared = await loadShared();
+  if(shared.parties.length === 0 && !p){
+    shared = seedData();
+    await saveShared(shared);
+  }
+  state.profile = p;
+  state.data = shared;
+  state.loading = false;
+  render();
+}
+
+/* ------------------------------------------------------------------ */
+/*  Actions                                                             */
+/* ------------------------------------------------------------------ */
+async function completeOnboarding(){
+  const f = state.onboardForm;
+  const withId = { ...f, id: "me_" + uid(), matches: 0, reliability: 100 };
+  state.profile = withId;
+  await saveProfile(withId);
+  const next = { ...state.data, players: { ...state.data.players, [withId.id]: { id: withId.id, name: withId.name, matches: 0, reliability: 100 } } };
+  await persistData(next);
+  flash(`Welcome to GameLink, ${withId.name} 👋`);
+  render();
+}
+
+function joinSlot(party, slotIndex, position){
+  const profile = state.profile;
+  const already = party.slots.some(s => s && s.playerId === profile.id);
+  if(already){ flash("You're already in this party."); return; }
+  const newSlots = [...party.slots];
+  newSlots[slotIndex] = { playerId: profile.id, name: profile.name, position: position || null };
+  const isFull = newSlots.every(s => s !== null);
+  const updatedParty = { ...party, slots: newSlots, status: isFull ? "full" : "open" };
+  const nextParties = state.data.parties.map(p => p.id === party.id ? updatedParty : p);
+  persistData({ ...state.data, parties: nextParties });
+  flash(isFull ? "You're in — squad is full! ⚽" : "You joined the party.");
+  render();
+}
+
+function createParty(){
+  const sport = state.createForm.sport;
+  const format = state.createForm.format;
+  const hub = document.getElementById("createHub").value;
+  const date = document.getElementById("createDate").value;
+  const time = document.getElementById("createTime").value;
+  const needsGK = document.getElementById("createGK") ? document.getElementById("createGK").checked : false;
+  if(!date){ flash("Pick a date first."); return; }
+  const fmt = FORMATS[sport].find(f => f.label === format);
+  const slots = Array(fmt.total).fill(null);
+  slots[0] = { playerId: state.profile.id, name: state.profile.name, position: sport === "Football" ? "Outfield" : null };
+  const datetime = new Date(`${date}T${time || "19:00"}:00`).toISOString();
+  const party = {
+    id: uid(), sport, format, slotsTotal: fmt.total, hub, datetime,
+    style: state.createForm.style, needsGK: sport === "Football" ? needsGK : false,
+    hostId: state.profile.id, status: "open", slots,
+  };
+  persistData({ ...state.data, parties: [party, ...state.data.parties] });
+  state.showCreate = false;
+  state.activePartyId = party.id;
+  state.screen = "party";
+  flash("Party created — waiting for players.");
+  render();
+}
+
+function markPlayed(party){
+  const nextPlayers = { ...state.data.players };
+  party.slots.filter(Boolean).forEach(s => {
+    const existing = nextPlayers[s.playerId] || { id: s.playerId, name: s.name, matches: 0, reliability: 100 };
+    const didShow = !state.noShows.includes(s.playerId);
+    nextPlayers[s.playerId] = {
+      ...existing,
+      matches: existing.matches + (didShow ? 1 : 0),
+      reliability: Math.max(0, Math.min(100, existing.reliability + (didShow ? 1 : -12))),
+    };
+  });
+  const nextParties = state.data.parties.map(p => p.id === party.id ? { ...p, status: "completed" } : p);
+  persistData({ ...state.data, players: nextPlayers, parties: nextParties });
+  if(state.profile && nextPlayers[state.profile.id]){
+    state.profile = { ...state.profile, matches: nextPlayers[state.profile.id].matches, reliability: nextPlayers[state.profile.id].reliability };
+    saveProfile(state.profile);
+  }
+  state.screen = "home";
+  state.activePartyId = null;
+  state.showRating = false;
+  state.noShows = [];
+  flash("Match logged. Reliability updated.");
+  render();
+}
+
+/* ------------------------------------------------------------------ */
+/*  Render: screens                                                     */
+/* ------------------------------------------------------------------ */
+function renderLoading(){
+  return `<div class="gl-root" style="align-items:center;justify-content:center;">
+    <div class="gl-display" style="color:var(--muted);font-size:14px;">Loading GameLink…</div>
+  </div>`;
+}
+
+function renderOnboarding(){
+  const steps = ["name","sports","level","hub"];
+  const step = steps[state.onboardStep];
+  const f = state.onboardForm;
+  let body = "";
+
+  if(step === "name"){
+    body = `
+      <div class="gl-display" style="font-size:20px;margin-bottom:8px;">What's your name?</div>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:18px;">This is how other players will see you in the lobby.</p>
+      <input class="gl-input" id="onboardName" placeholder="e.g. Sofia Martins" value="${f.name.replace(/"/g,'&quot;')}" autofocus />
+    `;
+  } else if(step === "sports"){
+    body = `
+      <div class="gl-display" style="font-size:20px;margin-bottom:8px;">Which sports do you play?</div>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:18px;">We're starting with these two in Lisbon.</p>
+      <div style="display:flex;gap:10px;">
+        ${["Football","Padel"].map(s => `
+          <button data-action="onboard-toggle-sport" data-sport="${s}" class="gl-chip ${f.sports.includes(s) ? "active" : ""}" style="flex:1;justify-content:center;padding:16px 10px;font-size:14px;">${s}</button>
+        `).join("")}
+      </div>
+    `;
+  } else if(step === "level"){
+    body = `
+      <div class="gl-display" style="font-size:20px;margin-bottom:8px;">What's your level?</div>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:18px;">Be honest — other players will rate you after each match, so this evens out over time.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${LEVELS.map(l => `
+          <button data-action="onboard-select-level" data-level="${l}" class="gl-chip ${f.level === l ? "active" : ""}" style="justify-content:flex-start;padding:14px;">${l}</button>
+        `).join("")}
+      </div>
+    `;
+  } else if(step === "hub"){
+    body = `
+      <div class="gl-display" style="font-size:20px;margin-bottom:8px;">Your local hub?</div>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:18px;">You'll see parties and alerts from this area first.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${HUBS.map(h => `
+          <button data-action="onboard-select-hub" data-hub="${h}" class="gl-chip ${f.hub === h ? "active" : ""}" style="padding:10px 14px;">${h}</button>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  const canNext = (step === "name" && f.name.trim().length > 0) ||
+                  (step === "sports" && f.sports.length > 0) ||
+                  (step === "level" && !!f.level) ||
+                  (step === "hub" && !!f.hub);
+
+  return `<div class="gl-root">
+    <div class="gl-scroll" style="padding-bottom:24px;display:flex;flex-direction:column;height:100%;">
+      <div style="margin-bottom:24px;">
+        <div class="gl-display" style="font-size:22px;margin-bottom:4px;">Game<span style="color:var(--grass-bright);">Link</span></div>
+        <div style="color:var(--muted);font-size:13px;">Lisbon · Football &amp; Padel</div>
+      </div>
+      <div class="gl-progressbar" style="margin-bottom:28px;"><div class="gl-progressfill" style="width:${((state.onboardStep+1)/steps.length)*100}%"></div></div>
+      <div style="flex:1;">${body}</div>
+      <div style="display:flex;gap:10px;margin-top:24px;">
+        ${state.onboardStep > 0 ? `<button data-action="onboard-back" class="gl-btn gl-btn-outline" style="flex:0 0 auto;padding:13px 16px;">${icon("chevronLeft",16)}</button>` : ""}
+        <button data-action="onboard-next" class="gl-btn" style="flex:1;" ${canNext ? "" : "disabled"}>
+          ${state.onboardStep === steps.length - 1 ? "Enter GameLink" : "Continue"}
         </button>
       </div>
-
-      <div className="gl-scroll">
-        <div className="gl-chip-row">
-          {["All", "Football", "Padel"].map((s) => (
-            <button key={s} className={`gl-chip ${sportFilter === s ? "active" : ""}`} onClick={() => setSportFilter(s)}>{s}</button>
-          ))}
-        </div>
-        <div className="gl-chip-row">
-          {["All", ...HUBS].map((h) => (
-            <button key={h} className={`gl-chip ${hubFilter === h ? "active" : ""}`} onClick={() => setHubFilter(h)}>
-              <MapPin size={11} /> {h}
-            </button>
-          ))}
-        </div>
-
-        {parties.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "50px 20px", color: "var(--muted)" }}>
-            <AlertCircle size={28} style={{ marginBottom: 10, opacity: 0.6 }} />
-            <div style={{ fontWeight: 700, marginBottom: 4, color: "var(--chalk)" }}>No parties here yet</div>
-            <div style={{ fontSize: 13 }}>Be the first to start one in this area — invite friends to fill it fast.</div>
-          </div>
-        ) : (
-          parties.map((p) => <PartyCard key={p.id} party={p} onClick={() => onOpenParty(p)} />)
-        )}
-      </div>
-    </>
-  );
-}
-
-function PartyCard({ party, onClick }) {
-  const filled = party.slots.filter(Boolean).length;
-  const styleTag = STYLES.find((s) => s.id === party.style);
-  const StyleIcon = styleTag?.icon || Coffee;
-  return (
-    <div className="gl-card" onClick={onClick}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-        <div>
-          <div className="gl-display" style={{ fontSize: 16 }}>{party.sport} · {party.format}</div>
-          <div style={{ fontSize: 12, color: "var(--muted)", display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
-            <MapPin size={11} /> {party.hub} &nbsp;·&nbsp; <Clock size={11} /> {fmtDate(party.datetime)}
-          </div>
-        </div>
-        <span className={`gl-tag ${party.style}`}><StyleIcon size={11} /> {styleTag?.label.split(" / ")[0]}</span>
-      </div>
-
-      {party.needsGK && party.sport === "Football" && !party.slots.some(s => s?.position === "GK") && (
-        <div style={{ marginBottom: 10 }}>
-          <span className="gl-tag" style={{ background: "rgba(232,162,61,0.18)", color: "var(--amber)" }}>
-            🧤 Goalkeeper needed
-          </span>
-        </div>
-      )}
-
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontSize: 12, color: "var(--muted)", display: "flex", alignItems: "center", gap: 5 }}>
-          <Users size={13} /> {filled}/{party.slotsTotal} joined
-        </div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: party.status === "full" ? "var(--grass-bright)" : "var(--muted)" }}>
-          {party.status === "full" ? "SQUAD FULL ✓" : `${party.slotsTotal - filled} spots left`}
-        </div>
-      </div>
-      <div className="gl-progressbar" style={{ marginTop: 8 }}>
-        <div className="gl-progressfill" style={{ width: `${(filled / party.slotsTotal) * 100}%` }} />
-      </div>
     </div>
-  );
+  </div>`;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Party Detail                                                       */
-/* ------------------------------------------------------------------ */
-function PartyDetail({ party, profile, onBack, onJoin, onMarkPlayed, onFreeAgent }) {
-  const [showRating, setShowRating] = useState(false);
-  const [noShows, setNoShows] = useState([]);
+function renderHome(){
+  const parties = state.data.parties
+    .filter(p => p.status !== "completed")
+    .filter(p => state.hubFilter === "All" || p.hub === state.hubFilter)
+    .filter(p => state.sportFilter === "All" || p.sport === state.sportFilter)
+    .sort((a,b) => new Date(a.datetime) - new Date(b.datetime));
+
+  const cards = parties.length === 0 ? `
+    <div style="text-align:center;padding:50px 20px;color:var(--muted);">
+      ${icon("alertCircle",28)}
+      <div style="font-weight:700;margin:10px 0 4px 0;color:var(--chalk);">No parties here yet</div>
+      <div style="font-size:13px;">Be the first to start one in this area — invite friends to fill it fast.</div>
+    </div>
+  ` : parties.map(renderPartyCard).join("");
+
+  return `
+    <div class="gl-topbar">
+      <div class="gl-logo gl-display">Game<span>Link</span></div>
+      <button data-action="open-create" class="gl-btn gl-btn-amber" style="padding:9px 14px;font-size:12px;">${icon("plus",14)} Party</button>
+    </div>
+    <div class="gl-scroll">
+      <div class="gl-chip-row">
+        ${["All","Football","Padel"].map(s => `<button data-action="filter-sport" data-value="${s}" class="gl-chip ${state.sportFilter===s?"active":""}">${s}</button>`).join("")}
+      </div>
+      <div class="gl-chip-row">
+        ${["All",...HUBS].map(h => `<button data-action="filter-hub" data-value="${h}" class="gl-chip ${state.hubFilter===h?"active":""}">${icon("mapPin",11)} ${h}</button>`).join("")}
+      </div>
+      ${cards}
+    </div>
+  `;
+}
+
+function renderPartyCard(party){
+  const filled = party.slots.filter(Boolean).length;
+  const styleTag = STYLES.find(s => s.id === party.style);
+  const needsGKVisible = party.needsGK && party.sport === "Football" && !party.slots.some(s => s && s.position === "GK");
+  return `
+    <div class="gl-card" data-action="open-party" data-id="${party.id}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+        <div>
+          <div class="gl-display" style="font-size:16px;">${party.sport} · ${party.format}</div>
+          <div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;margin-top:3px;">
+            ${icon("mapPin",11)} ${party.hub} &nbsp;·&nbsp; ${icon("clock",11)} ${fmtDate(party.datetime)}
+          </div>
+        </div>
+        <span class="gl-tag ${styleTag.id}">${icon(styleTag.icon,11)} ${styleTag.label.split(" / ")[0]}</span>
+      </div>
+      ${needsGKVisible ? `<div style="margin-bottom:10px;"><span class="gl-tag gk-tag">🧤 Goalkeeper needed</span></div>` : ""}
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;">${icon("users",13)} ${filled}/${party.slotsTotal} joined</div>
+        <div style="font-size:11px;font-weight:700;color:${party.status==="full"?"var(--grass-bright)":"var(--muted)"};">
+          ${party.status === "full" ? "SQUAD FULL ✓" : `${party.slotsTotal - filled} spots left`}
+        </div>
+      </div>
+      <div class="gl-progressbar" style="margin-top:8px;"><div class="gl-progressfill" style="width:${(filled/party.slotsTotal)*100}%"></div></div>
+    </div>
+  `;
+}
+
+function renderPartyDetail(){
+  const party = state.data.parties.find(p => p.id === state.activePartyId);
+  if(!party) return `<div class="gl-scroll">Party not found.</div>`;
+  const profile = state.profile;
   const isHost = party.hostId === profile.id;
   const filled = party.slots.filter(Boolean).length;
-  const iAmIn = party.slots.some((s) => s && s.playerId === profile.id);
-  const styleTag = STYLES.find((s) => s.id === party.style);
-  const StyleIcon = styleTag?.icon || Coffee;
+  const iAmIn = party.slots.some(s => s && s.playerId === profile.id);
+  const styleTag = STYLES.find(s => s.id === party.style);
   const missingOne = party.slotsTotal - filled === 1;
 
-  function toggleNoShow(id) {
-    setNoShows((n) => (n.includes(id) ? n.filter((x) => x !== id) : [...n, id]));
+  const slotsHtml = party.slots.map((slot, i) => {
+    const isGK = party.sport === "Football" && slot && slot.position === "GK";
+    const joinable = !slot && !iAmIn && party.status !== "completed";
+    return `<div class="gl-slot ${slot ? "filled" : ""} ${isGK ? "gk" : ""} ${joinable ? "joinable" : ""}"
+      ${joinable ? `data-action="join-slot" data-index="${i}"` : ""} title="${slot ? slot.name : "Open slot"}">
+      ${slot ? slot.name.slice(0,2).toUpperCase() : "+"}
+    </div>`;
+  }).join("");
+
+  let actionBlock = "";
+  if(!iAmIn && party.status === "open"){
+    actionBlock += `<button data-action="join-first-open" class="gl-btn" style="width:100%;margin-bottom:12px;">${icon("plus",16)} Join this party</button>`;
+  }
+  if(iAmIn && party.status !== "completed"){
+    actionBlock += `<div style="display:flex;align-items:center;gap:8px;color:var(--grass-bright);font-size:13px;font-weight:700;margin-bottom:12px;">${icon("check",16)} You're in this squad</div>`;
+  }
+  if(missingOne && party.status === "open"){
+    actionBlock += `<button data-action="free-agent" class="gl-btn gl-btn-outline" style="width:100%;margin-bottom:12px;">${icon("megaphone",15)} Send free-agent alert — 1 spot left</button>`;
+  }
+  if(isHost && party.status === "full" && !state.showRating){
+    actionBlock += `<button data-action="mark-played-start" class="gl-btn gl-btn-amber" style="width:100%;">${icon("trophy",15)} Mark match as played</button>`;
+  }
+  if(isHost && state.showRating){
+    actionBlock += `
+      <div class="gl-card" style="cursor:default;">
+        <div style="font-weight:700;margin-bottom:4px;">Who didn't show up?</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Tap anyone who no-showed — this quietly adjusts their reliability score.</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+          ${party.slots.filter(Boolean).map(s => {
+            const active = state.noShows.includes(s.playerId);
+            return `<button data-action="toggle-noshow" data-id="${s.playerId}" class="gl-chip" style="justify-content:flex-start;padding:10px 12px;${active ? "background:var(--danger);border-color:var(--danger);color:#fff;" : ""}">${s.name}</button>`;
+          }).join("")}
+        </div>
+        <button data-action="confirm-mark-played" class="gl-btn" style="width:100%;">Confirm &amp; log match</button>
+      </div>
+    `;
+  }
+  if(party.status === "completed"){
+    actionBlock += `<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">${icon("trophy",22)}<br/>This match has been logged.</div>`;
   }
 
-  return (
-    <>
-      <div className="gl-topbar">
-        <button className="gl-navitem" style={{ padding: 0 }} onClick={onBack}><ChevronLeft size={20} color="var(--chalk)" /></button>
-        <div className="gl-display" style={{ fontSize: 15 }}>{party.sport} Party</div>
-        <div style={{ width: 20 }} />
-      </div>
-
-      <div className="gl-scroll">
-        <div className="gl-card" style={{ cursor: "default" }}>
-          <div className="gl-display" style={{ fontSize: 20, marginBottom: 6 }}>{party.sport} · {party.format}</div>
-          <div style={{ fontSize: 13, color: "var(--muted)", display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-            <MapPin size={13} /> {party.hub} &nbsp;·&nbsp; <Clock size={13} /> {fmtDate(party.datetime)}
-          </div>
-          <span className={`gl-tag ${party.style}`}><StyleIcon size={12} /> {styleTag?.label}</span>
+  return `
+    <div class="gl-topbar">
+      <button data-action="back-home" class="gl-navitem" style="padding:0;">${icon("chevronLeft",20)}</button>
+      <div class="gl-display" style="font-size:15px;">${party.sport} Party</div>
+      <div style="width:20px;"></div>
+    </div>
+    <div class="gl-scroll">
+      <div class="gl-card" style="cursor:default;">
+        <div class="gl-display" style="font-size:20px;margin-bottom:6px;">${party.sport} · ${party.format}</div>
+        <div style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+          ${icon("mapPin",13)} ${party.hub} &nbsp;·&nbsp; ${icon("clock",13)} ${fmtDate(party.datetime)}
         </div>
-
-        <div className="gl-label" style={{ marginTop: 18 }}>Squad ({filled}/{party.slotsTotal})</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
-          {party.slots.map((slot, i) => {
-            const isGK = party.sport === "Football" && slot?.position === "GK";
-            return (
-              <div
-                key={i}
-                className={`gl-slot ${slot ? "filled" : ""} ${isGK ? "gk" : ""}`}
-                title={slot ? slot.name : "Open slot"}
-                onClick={() => {
-                  if (!slot && !iAmIn) {
-                    const wantGK = party.sport === "Football" && party.needsGK && window.confirm
-                      ? confirm("Join as Goalkeeper (GK)?")
-                      : false;
-                    onJoin(party, i, wantGK ? "GK" : party.sport === "Football" ? "Outfield" : null);
-                  }
-                }}
-                style={{ cursor: !slot && !iAmIn ? "pointer" : "default" }}
-              >
-                {slot ? slot.name.slice(0, 2).toUpperCase() : "+"}
-              </div>
-            );
-          })}
-        </div>
-
-        {!iAmIn && party.status === "open" && (
-          <button className="gl-btn" style={{ width: "100%", marginBottom: 12 }} onClick={() => onJoin(party, party.slots.findIndex((s) => !s), party.sport === "Football" ? "Outfield" : null)}>
-            <Plus size={16} /> Join this party
-          </button>
-        )}
-
-        {iAmIn && party.status !== "completed" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--grass-bright)", fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
-            <Check size={16} /> You're in this squad
-          </div>
-        )}
-
-        {missingOne && party.status === "open" && (
-          <button className="gl-btn gl-btn-outline" style={{ width: "100%", marginBottom: 12 }} onClick={onFreeAgent}>
-            <Megaphone size={15} /> Send free-agent alert — 1 spot left
-          </button>
-        )}
-
-        {isHost && party.status === "full" && !showRating && (
-          <button className="gl-btn gl-btn-amber" style={{ width: "100%" }} onClick={() => setShowRating(true)}>
-            <Trophy size={15} /> Mark match as played
-          </button>
-        )}
-
-        {isHost && showRating && (
-          <div className="gl-card" style={{ cursor: "default" }}>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>Who didn't show up?</div>
-            <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12 }}>Tap anyone who no-showed — this quietly adjusts their reliability score.</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-              {party.slots.filter(Boolean).map((s) => (
-                <button
-                  key={s.playerId}
-                  className={`gl-chip ${noShows.includes(s.playerId) ? "active" : ""}`}
-                  style={{ justifyContent: "flex-start", padding: "10px 12px", background: noShows.includes(s.playerId) ? "var(--danger)" : undefined, borderColor: noShows.includes(s.playerId) ? "var(--danger)" : undefined, color: noShows.includes(s.playerId) ? "#fff" : undefined }}
-                  onClick={() => toggleNoShow(s.playerId)}
-                >
-                  {s.name}
-                </button>
-              ))}
-            </div>
-            <button className="gl-btn" style={{ width: "100%" }} onClick={() => onMarkPlayed(party, noShows)}>
-              Confirm & log match
-            </button>
-          </div>
-        )}
-
-        {party.status === "completed" && (
-          <div style={{ textAlign: "center", padding: "20px", color: "var(--muted)", fontSize: 13 }}>
-            <Trophy size={22} style={{ marginBottom: 6, opacity: 0.6 }} /><br />
-            This match has been logged.
-          </div>
-        )}
+        <span class="gl-tag ${styleTag.id}">${icon(styleTag.icon,12)} ${styleTag.label}</span>
       </div>
-    </>
-  );
+      <div class="gl-label" style="margin-top:18px;">Squad (${filled}/${party.slotsTotal})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;">${slotsHtml}</div>
+      ${actionBlock}
+    </div>
+  `;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Create Party Modal                                                 */
-/* ------------------------------------------------------------------ */
-function CreatePartyModal({ onClose, onCreate }) {
-  const [sport, setSport] = useState("Football");
-  const [format, setFormat] = useState(FORMATS.Football[0].label);
-  const [hub, setHub] = useState(HUBS[0]);
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("19:00");
-  const [style, setStyle] = useState("chill");
-  const [needsGK, setNeedsGK] = useState(false);
-
-  useEffect(() => { setFormat(FORMATS[sport][0].label); }, [sport]);
-
-  function submit() {
-    if (!date) return;
-    const datetime = new Date(`${date}T${time}:00`).toISOString();
-    onCreate({ sport, format, hub, datetime, style, needsGK });
-  }
-
-  return (
-    <div className="gl-modal-backdrop" onClick={onClose}>
-      <div className="gl-modal" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <div className="gl-display" style={{ fontSize: 18 }}>Start a party</div>
-          <button className="gl-navitem" style={{ padding: 0 }} onClick={onClose}><X size={20} color="var(--chalk)" /></button>
+function renderCreateModal(){
+  const f = state.createForm;
+  return `
+    <div class="gl-modal-backdrop" data-action="close-create-backdrop">
+      <div class="gl-modal" onclick="event.stopPropagation()">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <div class="gl-display" style="font-size:18px;">Start a party</div>
+          <button data-action="close-create" class="gl-navitem" style="padding:0;">${icon("x",20)}</button>
         </div>
 
-        <label className="gl-label">Sport</label>
-        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-          {["Football", "Padel"].map((s) => (
-            <button key={s} className={`gl-chip ${sport === s ? "active" : ""}`} style={{ flex: 1, justifyContent: "center", padding: 12 }} onClick={() => setSport(s)}>{s}</button>
-          ))}
+        <label class="gl-label">Sport</label>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          ${["Football","Padel"].map(s => `<button data-action="create-select-sport" data-sport="${s}" class="gl-chip ${f.sport===s?"active":""}" style="flex:1;justify-content:center;padding:12px;">${s}</button>`).join("")}
         </div>
 
-        <label className="gl-label">Format</label>
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-          {FORMATS[sport].map((f) => (
-            <button key={f.label} className={`gl-chip ${format === f.label ? "active" : ""}`} onClick={() => setFormat(f.label)}>{f.label}</button>
-          ))}
+        <label class="gl-label">Format</label>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          ${FORMATS[f.sport].map(fmt => `<button data-action="create-select-format" data-format="${fmt.label}" class="gl-chip ${f.format===fmt.label?"active":""}">${fmt.label}</button>`).join("")}
         </div>
 
-        {sport === "Football" && (
-          <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, fontSize: 13, cursor: "pointer" }}>
-            <input type="checkbox" checked={needsGK} onChange={(e) => setNeedsGK(e.target.checked)} />
+        ${f.sport === "Football" ? `
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="createGK" ${f.needsGK ? "checked" : ""} onchange="state.createForm.needsGK=this.checked;" />
             Highlight that a goalkeeper is needed
           </label>
-        )}
+        ` : ""}
 
-        <label className="gl-label">Hub</label>
-        <select className="gl-select" value={hub} onChange={(e) => setHub(e.target.value)} style={{ marginBottom: 16 }}>
-          {HUBS.map((h) => <option key={h} value={h}>{h}</option>)}
+        <label class="gl-label">Hub</label>
+        <select class="gl-select" id="createHub" style="margin-bottom:16px;">
+          ${HUBS.map(h => `<option value="${h}">${h}</option>`).join("")}
         </select>
 
-        <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-          <div style={{ flex: 1 }}>
-            <label className="gl-label">Date</label>
-            <input type="date" className="gl-input" value={date} onChange={(e) => setDate(e.target.value)} min={new Date().toISOString().split("T")[0]} />
+        <div class="gl-row" style="margin-bottom:16px;">
+          <div class="gl-col">
+            <label class="gl-label">Date</label>
+            <input type="date" class="gl-input" id="createDate" min="${new Date().toISOString().split("T")[0]}" />
           </div>
-          <div style={{ flex: 1 }}>
-            <label className="gl-label">Time</label>
-            <input type="time" className="gl-input" value={time} onChange={(e) => setTime(e.target.value)} />
+          <div class="gl-col">
+            <label class="gl-label">Time</label>
+            <input type="time" class="gl-input" id="createTime" value="19:00" />
           </div>
         </div>
 
-        <label className="gl-label">Match vibe</label>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 22 }}>
-          {STYLES.map((s) => {
-            const Icon = s.icon;
-            return (
-              <button key={s.id} className={`gl-chip ${style === s.id ? "active" : ""}`} style={{ justifyContent: "flex-start", padding: 12 }} onClick={() => setStyle(s.id)}>
-                <Icon size={14} /> {s.label}
-              </button>
-            );
-          })}
+        <label class="gl-label">Match vibe</label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:22px;">
+          ${STYLES.map(s => `<button data-action="create-select-style" data-style="${s.id}" class="gl-chip ${f.style===s.id?"active":""}" style="justify-content:flex-start;padding:12px;">${icon(s.icon,14)} ${s.label}</button>`).join("")}
         </div>
 
-        <button className="gl-btn" style={{ width: "100%" }} disabled={!date} onClick={submit}>
-          Create party
-        </button>
+        <button data-action="create-submit" class="gl-btn" style="width:100%;">Create party</button>
       </div>
     </div>
-  );
+  `;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Leaderboard                                                        */
-/* ------------------------------------------------------------------ */
-function Leaderboard({ players }) {
-  const sorted = Object.values(players).sort((a, b) => b.matches - a.matches);
-  return (
-    <>
-      <div className="gl-topbar">
-        <div className="gl-display" style={{ fontSize: 18 }}>Leaderboard</div>
+function renderLeaderboard(){
+  const sorted = Object.values(state.data.players).sort((a,b) => b.matches - a.matches);
+  const rows = sorted.length === 0
+    ? `<div style="color:var(--muted);text-align:center;padding:40px;">No matches logged yet.</div>`
+    : sorted.map((p,i) => `
+      <div class="gl-card" style="cursor:default;display:flex;align-items:center;gap:12px;">
+        <div class="gl-display" style="font-size:16px;width:26px;color:${i===0?"var(--amber)":"var(--muted)"};">${i+1}</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;">${p.name}</div>
+          <div style="font-size:12px;color:var(--muted);">${p.reliability}% reliability</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="gl-display" style="font-size:15px;">${p.matches}</div>
+          <div style="font-size:10px;color:var(--muted);">matches</div>
+        </div>
       </div>
-      <div className="gl-scroll">
-        <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>Ranked by matches played across all hubs.</p>
-        {sorted.length === 0 && <div style={{ color: "var(--muted)", textAlign: "center", padding: 40 }}>No matches logged yet.</div>}
-        {sorted.map((p, i) => (
-          <div key={p.id} className="gl-card" style={{ cursor: "default", display: "flex", alignItems: "center", gap: 12 }}>
-            <div className="gl-display" style={{ fontSize: 16, width: 26, color: i === 0 ? "var(--amber)" : "var(--muted)" }}>
-              {i + 1}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700 }}>{p.name}</div>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>{p.reliability}% reliability</div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div className="gl-display" style={{ fontSize: 15 }}>{p.matches}</div>
-              <div style={{ fontSize: 10, color: "var(--muted)" }}>matches</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
-  );
+    `).join("");
+
+  return `
+    <div class="gl-topbar"><div class="gl-display" style="font-size:18px;">Leaderboard</div></div>
+    <div class="gl-scroll">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">Ranked by matches played across all hubs.</p>
+      ${rows}
+    </div>
+  `;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Profile                                                             */
-/* ------------------------------------------------------------------ */
-function ProfileScreen({ profile }) {
-  return (
-    <>
-      <div className="gl-topbar">
-        <div className="gl-display" style={{ fontSize: 18 }}>Profile</div>
-      </div>
-      <div className="gl-scroll">
-        <div className="gl-card" style={{ cursor: "default", textAlign: "center", padding: 28 }}>
-          <div style={{
-            width: 64, height: 64, borderRadius: "50%", background: "var(--grass)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            margin: "0 auto 14px auto", fontSize: 22, fontWeight: 800, color: "#0F1A14",
-          }}>
-            {profile.name.slice(0, 2).toUpperCase()}
-          </div>
-          <div className="gl-display" style={{ fontSize: 18, marginBottom: 4 }}>{profile.name}</div>
-          <div style={{ fontSize: 12, color: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-            <MapPin size={11} /> {profile.hub} · {profile.level}
-          </div>
+function renderProfile(){
+  const p = state.profile;
+  return `
+    <div class="gl-topbar"><div class="gl-display" style="font-size:18px;">Profile</div></div>
+    <div class="gl-scroll">
+      <div class="gl-card" style="cursor:default;text-align:center;padding:28px;">
+        <div style="width:64px;height:64px;border-radius:50%;background:var(--grass);display:flex;align-items:center;justify-content:center;margin:0 auto 14px auto;font-size:22px;font-weight:800;color:#0F1A14;">
+          ${p.name.slice(0,2).toUpperCase()}
         </div>
-
-        <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-          <div className="gl-card" style={{ cursor: "default", flex: 1, textAlign: "center" }}>
-            <div className="gl-display" style={{ fontSize: 22, color: "var(--grass-bright)" }}>{profile.matches}</div>
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>Matches played</div>
-          </div>
-          <div className="gl-card" style={{ cursor: "default", flex: 1, textAlign: "center" }}>
-            <div className="gl-display" style={{ fontSize: 22, color: "var(--amber)" }}>{profile.reliability}%</div>
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>Reliability</div>
-          </div>
-        </div>
-
-        <div className="gl-card" style={{ cursor: "default" }}>
-          <div className="gl-label">Sports</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            {profile.sports.map((s) => <span key={s} className="gl-chip active" style={{ cursor: "default" }}>{s}</span>)}
-          </div>
-        </div>
-
-        <div style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", marginTop: 20, lineHeight: 1.6 }}>
-          <Shield size={13} style={{ verticalAlign: "-2px", marginRight: 4 }} />
-          Reliability is built from real post-match feedback, not self-reporting.
+        <div class="gl-display" style="font-size:18px;margin-bottom:4px;">${p.name}</div>
+        <div style="font-size:12px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:5px;">
+          ${icon("mapPin",11)} ${p.hub} · ${p.level}
         </div>
       </div>
-    </>
-  );
+      <div style="display:flex;gap:10px;margin-bottom:12px;">
+        <div class="gl-card" style="cursor:default;flex:1;text-align:center;">
+          <div class="gl-display" style="font-size:22px;color:var(--grass-bright);">${p.matches}</div>
+          <div style="font-size:11px;color:var(--muted);">Matches played</div>
+        </div>
+        <div class="gl-card" style="cursor:default;flex:1;text-align:center;">
+          <div class="gl-display" style="font-size:22px;color:var(--amber);">${p.reliability}%</div>
+          <div style="font-size:11px;color:var(--muted);">Reliability</div>
+        </div>
+      </div>
+      <div class="gl-card" style="cursor:default;">
+        <div class="gl-label">Sports</div>
+        <div style="display:flex;gap:8px;">
+          ${p.sports.map(s => `<span class="gl-chip active" style="cursor:default;">${s}</span>`).join("")}
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:20px;line-height:1.6;">
+        ${icon("shield",13)} Reliability is built from real post-match feedback, not self-reporting.
+      </div>
+    </div>
+  `;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Bottom Nav                                                         */
-/* ------------------------------------------------------------------ */
-function BottomNav({ screen, setScreen, onCreate }) {
-  const items = [
-    { id: "home", label: "Parties", icon: Home },
-    { id: "leaderboard", label: "Ranks", icon: Trophy },
-    { id: "profile", label: "Profile", icon: User },
-  ];
-  return (
-    <div className="gl-bottomnav">
-      {items.slice(0, 1).map((it) => (
-        <button key={it.id} className={`gl-navitem ${screen === it.id ? "active" : ""}`} onClick={() => setScreen(it.id)}>
-          <it.icon size={19} /> {it.label}
-        </button>
-      ))}
-      <button className="gl-navitem" onClick={onCreate}>
-        <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--grass)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: -18, boxShadow: "0 4px 12px rgba(76,154,90,0.4)" }}>
-          <Plus size={20} color="#0F1A14" />
+function renderBottomNav(){
+  return `
+    <div class="gl-bottomnav">
+      <button data-action="set-screen" data-screen="home" class="gl-navitem ${state.screen==="home"?"active":""}">${icon("home",19)} Parties</button>
+      <button data-action="open-create" class="gl-navitem">
+        <div style="width:40px;height:40px;border-radius:50%;background:var(--grass);display:flex;align-items:center;justify-content:center;margin-top:-18px;box-shadow:0 4px 12px rgba(76,154,90,0.4);">
+          ${icon("plus",20,"#0F1A14")}
         </div>
       </button>
-      {items.slice(1).map((it) => (
-        <button key={it.id} className={`gl-navitem ${screen === it.id ? "active" : ""}`} onClick={() => setScreen(it.id)}>
-          <it.icon size={19} /> {it.label}
-        </button>
-      ))}
+      <button data-action="set-screen" data-screen="leaderboard" class="gl-navitem ${state.screen==="leaderboard"?"active":""}">${icon("trophy",19)} Ranks</button>
+      <button data-action="set-screen" data-screen="profile" class="gl-navitem ${state.screen==="profile"?"active":""}">${icon("user",19)} Profile</button>
     </div>
-  );
+  `;
 }
+
+function renderToast(){
+  return `<div class="gl-toast">${icon("megaphone",16,"var(--grass-bright)")}<span>${state.toast}</span></div>`;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Master render                                                      */
+/* ------------------------------------------------------------------ */
+function render(){
+  const app = document.getElementById("app");
+  if(state.loading){ app.innerHTML = renderLoading(); return; }
+  if(!state.profile){ app.innerHTML = renderOnboarding(); bindEvents(); return; }
+
+  let screenHtml = "";
+  if(state.screen === "home") screenHtml = renderHome();
+  else if(state.screen === "party") screenHtml = renderPartyDetail();
+  else if(state.screen === "leaderboard") screenHtml = renderLeaderboard();
+  else if(state.screen === "profile") screenHtml = renderProfile();
+
+  app.innerHTML = `<div class="gl-root">
+    ${screenHtml}
+    ${renderBottomNav()}
+    ${state.showCreate ? renderCreateModal() : ""}
+    ${state.toast ? renderToast() : ""}
+  </div>`;
+  bindEvents();
+}
+
+/* ------------------------------------------------------------------ */
+/*  Event delegation                                                    */
+/* ------------------------------------------------------------------ */
+function bindEvents(){
+  document.querySelectorAll("[data-action]").forEach(el => {
+    el.addEventListener("click", handleAction);
+  });
+}
+
+function handleAction(e){
+  const el = e.currentTarget;
+  const action = el.dataset.action;
+
+  if(action === "onboard-toggle-sport"){
+    const s = el.dataset.sport;
+    const list = state.onboardForm.sports;
+    state.onboardForm.sports = list.includes(s) ? list.filter(x => x !== s) : [...list, s];
+    render();
+  }
+  else if(action === "onboard-select-level"){ state.onboardForm.level = el.dataset.level; render(); }
+  else if(action === "onboard-select-hub"){ state.onboardForm.hub = el.dataset.hub; render(); }
+  else if(action === "onboard-back"){ state.onboardStep -= 1; render(); }
+  else if(action === "onboard-next"){
+    const steps = ["name","sports","level","hub"];
+    if(steps[state.onboardStep] === "name"){
+      const val = document.getElementById("onboardName").value;
+      state.onboardForm.name = val;
+      if(!val.trim()) return;
+    }
+    if(state.onboardStep === steps.length - 1){ completeOnboarding(); }
+    else { state.onboardStep += 1; render(); }
+  }
+  else if(action === "set-screen"){ state.screen = el.dataset.screen; state.activePartyId = null; render(); }
+  else if(action === "open-create"){
+    state.createForm = { sport:"Football", format: FORMATS.Football[0].label, needsGK:false, style:"chill" };
+    state.showCreate = true; render();
+  }
+  else if(action === "close-create" || action === "close-create-backdrop"){ state.showCreate = false; render(); }
+  else if(action === "open-party"){ state.activePartyId = el.dataset.id; state.screen = "party"; state.showRating=false; state.noShows=[]; render(); }
+  else if(action === "back-home"){ state.screen = "home"; state.activePartyId = null; state.showRating=false; state.noShows=[]; render(); }
+  else if(action === "filter-sport"){ state.sportFilter = el.dataset.value; render(); }
+  else if(action === "filter-hub"){ state.hubFilter = el.dataset.value; render(); }
+  else if(action === "create-select-sport"){
+    state.createForm.sport = el.dataset.sport;
+    state.createForm.format = FORMATS[state.createForm.sport][0].label;
+    render();
+  }
+  else if(action === "create-select-format"){ state.createForm.format = el.dataset.format; render(); }
+  else if(action === "create-select-style"){ state.createForm.style = el.dataset.style; render(); }
+  else if(action === "create-submit"){ createParty(); }
+  else if(action === "join-first-open"){
+    const party = state.data.parties.find(p => p.id === state.activePartyId);
+    const idx = party.slots.findIndex(s => !s);
+    if(idx === -1) return;
+    let position = party.sport === "Football" ? "Outfield" : null;
+    if(party.sport === "Football" && party.needsGK && !party.slots.some(s => s && s.position === "GK")){
+      if(confirm("Join as Goalkeeper (GK)?")) position = "GK";
+    }
+    joinSlot(party, idx, position);
+  }
+  else if(action === "join-slot"){
+    const party = state.data.parties.find(p => p.id === state.activePartyId);
+    const idx = parseInt(el.dataset.index, 10);
+    let position = party.sport === "Football" ? "Outfield" : null;
+    if(party.sport === "Football" && party.needsGK && !party.slots.some(s => s && s.position === "GK")){
+      if(confirm("Join as Goalkeeper (GK)?")) position = "GK";
+    }
+    joinSlot(party, idx, position);
+  }
+  else if(action === "free-agent"){
+    const party = state.data.parties.find(p => p.id === state.activePartyId);
+    flash(`📢 Free-agent alert sent to available players in ${party.hub}.`);
+  }
+  else if(action === "mark-played-start"){ state.showRating = true; render(); }
+  else if(action === "toggle-noshow"){
+    const id = el.dataset.id;
+    state.noShows = state.noShows.includes(id) ? state.noShows.filter(x => x !== id) : [...state.noShows, id];
+    render();
+  }
+  else if(action === "confirm-mark-played"){
+    const party = state.data.parties.find(p => p.id === state.activePartyId);
+    markPlayed(party);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+init();
+</script>
+</body>
+</html>
